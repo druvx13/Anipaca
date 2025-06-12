@@ -1,10 +1,11 @@
 <?php
+session_start(); // Ensure session is started at the very top
 
 require_once('src/component/anime/qtip.php');
 require_once($_SERVER['DOCUMENT_ROOT'] . '/_config.php');
 
-error_reporting(E_ALL); 
-ini_set('display_errors', 1); 
+// error_reporting(E_ALL); // These might be already set in _config.php for production
+// ini_set('display_errors', 1); // These might be already set in _config.php for production
 
 $mysqli = $conn;
 
@@ -20,6 +21,7 @@ if (!$animeData) {
 
 
 $isLoggedIn = isset($_COOKIE['userID']) && !empty($_COOKIE['userID']);
+error_log("Debug details.php: \$isLoggedIn evaluated to: " . ($isLoggedIn ? 'true' : 'false')); // DEBUGGING
 $watchlistStatus = null;
 
 if ($isLoggedIn) {
@@ -129,7 +131,17 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
 <body data-page="movie_info">
     <div id="sidebar_menu_bg"></div>
     <div id="wrapper" data-page="page_home">
-        <?php include('src/component/header.php'); ?>
+        <?php
+        // DEBUGGING: Check cookie state before header include
+        error_log("Debug details.php: Cookie userID before header include: " . ($_COOKIE['userID'] ?? 'Not Set'));
+        if (isset($_COOKIE['userID'])) {
+            error_log("Debug details.php: userID is SET before header.");
+        } else {
+            error_log("Debug details.php: userID is NOT SET before header.");
+        }
+        // End DEBUGGING
+        include('src/component/header.php');
+        ?>
         <div class="clearfix"></div>
         <div id="main-wrapper" date-page="movie_info" data-id="<?= htmlspecialchars($animeId) ?>">
             <div id="ani_detail">
