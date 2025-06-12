@@ -75,31 +75,31 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
 
 <head>
  
-<title>Details Of <?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?> - <?= htmlspecialchars($websiteTitle) ?></title>
+<title>Details Of <?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Anime Details') ?> - <?= htmlspecialchars($websiteTitle ?? 'Website') ?></title>
 
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="title" content="Watch <?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?> - <?= htmlspecialchars($websiteTitle) ?>" />
-<meta name="description" content="<?= htmlspecialchars(substr($animeData['overview'], 0, 150)) ?>.... Read More On <?= htmlspecialchars($websiteTitle) ?>" />
+<meta name="title" content="Watch <?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Anime') ?> - <?= htmlspecialchars($websiteTitle ?? 'Website') ?>" />
+<meta name="description" content="<?= htmlspecialchars(substr($animeData['overview'] ?? '', 0, 150)) ?>.... Read More On <?= htmlspecialchars($websiteTitle ?? 'Website') ?>" />
 
 <meta name="charset" content="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
 <meta name="robots" content="index, follow" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
 <meta http-equiv="Content-Language" content="en" />
-<meta property="og:title" content="Details Of <?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?> - <?= htmlspecialchars($websiteTitle) ?>">
-<meta property="og:description" content="<?= htmlspecialchars(substr($animeData['overview'], 0, 150)) ?>.... Read More On <?= htmlspecialchars($websiteTitle) ?>.">
+<meta property="og:title" content="Details Of <?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Anime') ?> - <?= htmlspecialchars($websiteTitle ?? 'Website') ?>">
+<meta property="og:description" content="<?= htmlspecialchars(substr($animeData['overview'] ?? '', 0, 150)) ?>.... Read More On <?= htmlspecialchars($websiteTitle ?? 'Website') ?>.">
 <meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="<?= htmlspecialchars($websiteTitle) ?>">
-<meta property="og:url" content="<?= htmlspecialchars($websiteUrl) ?>/anime/<?= htmlspecialchars($animeId) ?>">
-<meta itemprop="image" content="<?= htmlspecialchars($animeData['poster']) ?>">
-<meta property="og:image" content="<?= htmlspecialchars($animeData['poster']) ?>">
-<meta property="og:image:secure_url" content="<?= htmlspecialchars($animeData['poster']) ?>">
+<meta property="og:site_name" content="<?= htmlspecialchars($websiteTitle ?? 'Website Name') ?>">
+<meta property="og:url" content="<?= htmlspecialchars($websiteUrl ?? '') ?>/anime/<?= htmlspecialchars($animeId ?? '') ?>">
+<meta itemprop="image" content="<?= htmlspecialchars($animeData['poster'] ?? '') ?>">
+<meta property="og:image" content="<?= htmlspecialchars($animeData['poster'] ?? '') ?>">
+<meta property="og:image:secure_url" content="<?= htmlspecialchars($animeData['poster'] ?? '') ?>">
 <meta property="og:image:width" content="650">
 <meta property="og:image:height" content="350">
-<meta property="twitter:title" content="Details Of <?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?> - <?= htmlspecialchars($websiteTitle) ?>">
-<meta property="twitter:description" content="<?= htmlspecialchars(substr($animeData['overview'], 0, 150)) ?>.... Read More On <?= htmlspecialchars($websiteTitle) ?>.">
-<meta property="twitter:url" content="<?= htmlspecialchars($websiteUrl) ?>/anime/<?= htmlspecialchars($animeId) ?>">
+<meta property="twitter:title" content="Details Of <?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Anime') ?> - <?= htmlspecialchars($websiteTitle ?? 'Website') ?>">
+<meta property="twitter:description" content="<?= htmlspecialchars(substr($animeData['overview'] ?? '', 0, 150)) ?>.... Read More On <?= htmlspecialchars($websiteTitle ?? 'Website') ?>.">
+<meta property="twitter:url" content="<?= htmlspecialchars($websiteUrl ?? '') ?>/anime/<?= htmlspecialchars($animeId ?? '') ?>">
 <meta property="twitter:card" content="summary">
 <meta name="apple-mobile-web-app-status-bar" content="#202125">
 <meta name="theme-color" content="#202125">
@@ -143,17 +143,17 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
         include('src/component/header.php');
         ?>
         <div class="clearfix"></div>
-        <div id="main-wrapper" date-page="movie_info" data-id="<?= htmlspecialchars($animeId) ?>">
+        <div id="main-wrapper" date-page="movie_info" data-id="<?= htmlspecialchars($animeId ?? '') ?>">
             <div id="ani_detail">
                 <div class="ani_detail-stage">
                     <div class="container">
                         <div class="anis-cover-wrap">
-                            <div class="anis-cover" style="background-image: url('<?= htmlspecialchars($animeData['poster']) ?>')"></div>
+                            <div class="anis-cover" style="background-image: url('<?= htmlspecialchars($animeData['poster'] ?? '') ?>')"></div>
                         </div>
                         <div class="anis-content">
                             <div class="anisc-poster">
                                 <div class="film-poster">
-                                    <img src="<?= htmlspecialchars($animeData['poster']) ?>" class="film-poster-img">
+                                    <img src="<?= htmlspecialchars($animeData['poster'] ?? '') ?>" class="film-poster-img" alt="<?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Poster') ?>">
                                    
                                 </div>
                             </div>
@@ -163,32 +163,32 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                                         <ol class="breadcrumb">
                                             <li class="breadcrumb-item"><a href="/">Home</a></li>
                                             <li class="breadcrumb-item"><a href="/anime">Anime</a></li>
-                                            <li class="breadcrumb-item dynamic-name active" data-jname="<?= htmlspecialchars($animeData['japanese'] ?? $animeData['japanese']) ?>"><?= htmlspecialchars($animeData['title'] ?? $animeData['japanese']) ?></li>
+                                            <li class="breadcrumb-item dynamic-name active" data-jname="<?= htmlspecialchars($animeData['japanese'] ?? $animeData['jname'] ?? '') ?>"><?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Anime') ?></li>
                                         </ol>
                                     </nav>
                                 </div>
-                                <h2 class="film-name dynamic-name" data-jname="<?= htmlspecialchars($animeData['japanese'] ?? $animeData['title']) ?>"><?= htmlspecialchars($animeData['title'] ?? $animeData['japanese']) ?></h2>
+                                <h2 class="film-name dynamic-name" data-jname="<?= htmlspecialchars($animeData['japanese'] ?? $animeData['title'] ?? '') ?>"><?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'Anime Title') ?></h2>
                                 <div id="mal-sync"></div>
                                 <div class="film-stats">
                                     <div class="tick">
-                                    <div class="tick-item tick-pg"><?= htmlspecialchars($animeData['rating']) ?></div>
-                                    <div class="tick-item tick-quality"><?= htmlspecialchars($animeData['quality']) ?></div>
-                                        <div class="tick-item tick-sub"><i class="fas fa-closed-captioning mr-1"></i><?= htmlspecialchars($animeData['subEp']) ?></div>
-                                        <div class="tick-item tick-dub"><i class="fas fa-microphone mr-1"></i><?= htmlspecialchars($animeData['dubEp']) ?></div>
+                                    <div class="tick-item tick-pg"><?= htmlspecialchars($animeData['rating'] ?? 'N/A') ?></div>
+                                    <div class="tick-item tick-quality"><?= htmlspecialchars($animeData['quality'] ?? 'N/A') ?></div>
+                                        <div class="tick-item tick-sub"><i class="fas fa-closed-captioning mr-1"></i><?= htmlspecialchars($animeData['subEp'] ?? 'N/A') ?></div>
+                                        <div class="tick-item tick-dub"><i class="fas fa-microphone mr-1"></i><?= htmlspecialchars($animeData['dubEp'] ?? 'N/A') ?></div>
                                         <span class="dot"></span>
-                                        <span class="item"><?= htmlspecialchars($animeData['showType']) ?></span>
+                                        <span class="item"><?= htmlspecialchars($animeData['showType'] ?? 'N/A') ?></span>
                                         <span class="dot"></span>
-                                        <span class="item"><?= htmlspecialchars($animeData['duration']) ?></span>
+                                        <span class="item"><?= htmlspecialchars($animeData['duration'] ?? 'N/A') ?></span>
                                         <div class="clearfix"></div>
                                     </div>
                                 </div>
                                 <div class="film-buttons">
-                                    <a href="/watch/<?= htmlspecialchars($animeData['id']) ?>?ep=1" class="btn btn-radius btn-primary btn-play"><i class="fas fa-play mr-2"></i>Watch now</a>
+                                    <a href="/watch/<?= htmlspecialchars($animeData['id'] ?? '') ?>?ep=1" class="btn btn-radius btn-primary btn-play"><i class="fas fa-play mr-2"></i>Watch now</a>
                                     <div class="dr-fav dropdown" id="watch-list-content">
-                                        <button type="button" class="btn btn-radius btn-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-anime-id="<?= htmlspecialchars($animeId) ?>">
+                                        <button type="button" class="btn btn-radius btn-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-anime-id="<?= htmlspecialchars($animeId ?? '') ?>">
                                             <?php if (!$isLoggedIn): ?>
                                                 <i class="fas fa-user mr-2"></i>Sign in to add
-                                            <?php elseif ($watchlistStatus): ?>
+                                            <?php elseif ($watchlistStatus && isset($watchlistLabels[$watchlistStatus])): ?>
                                                 <i class="fas fa-check mr-2"></i><?= htmlspecialchars($watchlistLabels[$watchlistStatus]) ?>
                                             <?php else: ?>
                                                 <i class="fas fa-plus mr-2"></i>Add to List
@@ -198,14 +198,14 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                                             <div class="dropdown-menu dropdown-menu-model dropdown-menu-normal">
                                                 <?php foreach ($watchlistLabels as $statusId => $label): ?>
                                                     <a class="wl-item dropdown-item <?= ($watchlistStatus == $statusId) ? 'active' : '' ?>" 
-                                                       data-type="<?= $statusId ?>" 
-                                                       data-movieid="<?= htmlspecialchars($animeId) ?>" 
-                                                       data-animename="<?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?>" 
-                                                       data-poster="<?= htmlspecialchars($animeData['poster']) ?>" 
-                                                       data-subcount="<?= htmlspecialchars($animeData['subEp']) ?>" 
-                                                       data-dubcount="<?= htmlspecialchars($animeData['dubEp']) ?>" 
-                                                       data-animetype="<?= htmlspecialchars($animeData['showType']) ?>" 
-                                                       data-anilistid="<?= htmlspecialchars($animeData['anilistId']) ?>" 
+                                                       data-type="<?= htmlspecialchars((string)$statusId) ?>"
+                                                       data-movieid="<?= htmlspecialchars($animeId ?? '') ?>"
+                                                       data-animename="<?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? '') ?>"
+                                                       data-poster="<?= htmlspecialchars($animeData['poster'] ?? '') ?>"
+                                                       data-subcount="<?= htmlspecialchars($animeData['subEp'] ?? '0') ?>"
+                                                       data-dubcount="<?= htmlspecialchars($animeData['dubEp'] ?? '0') ?>"
+                                                       data-animetype="<?= htmlspecialchars($animeData['showType'] ?? '') ?>"
+                                                       data-anilistid="<?= htmlspecialchars($animeData['anilistId'] ?? '') ?>"
                                                        data-page="detail" 
                                                        href="javascript:;">
                                                         <?= htmlspecialchars($label) ?>
@@ -217,12 +217,12 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                                 </div>
                                 <div class="film-description m-hide">
                                     <div class="text">
-                                        <?= nl2br(htmlspecialchars($animeData['overview'])) ?><span class="btn-more-desc more">+ More</span>
+                                        <?= nl2br(htmlspecialchars($animeData['overview'] ?? 'No overview available.')) ?><span class="btn-more-desc more">+ More</span>
                                     </div>
                                 </div>
                                 <div class="film-text m-hide">
-                                    <?= htmlspecialchars($websiteTitle) ?> is the best site to watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?></strong> SUB online, or you can even watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?></strong> DUB in HD quality.
-                                    You can also find <a class="name" href="/producer/<?= htmlspecialchars(strtolower(str_replace(" ", "-", $animeData['studio']))) ?>"><strong><?= htmlspecialchars($animeData['studio']) ?></strong></a> anime on <?= htmlspecialchars($websiteTitle) ?> website.
+                                    <?= htmlspecialchars($websiteTitle ?? 'This website') ?> is the best site to watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'this anime') ?></strong> SUB online, or you can even watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'this anime') ?></strong> DUB in HD quality.
+                                    You can also find <a class="name" href="/producer/<?= htmlspecialchars(strtolower(str_replace(" ", "-", $animeData['studio'] ?? ''))) ?>"><strong><?= htmlspecialchars($animeData['studio'] ?? 'the studio') ?></strong></a> anime on <?= htmlspecialchars($websiteTitle ?? 'this website') ?> website.
                                 </div>
                                 <div class="share-buttons share-buttons-min mt-3">
                                     <div class="share-buttons-block" style="padding-bottom: 0 !important;">
@@ -241,46 +241,46 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                                     <div class="item item-title w-hide">
                                         <span class="item-head">Overview:</span>
                                         <div class="text">
-                                            <?= nl2br(htmlspecialchars($animeData['overview'])) ?>
+                                            <?= nl2br(htmlspecialchars($animeData['overview'] ?? 'N/A')) ?>
                                         </div>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">Japanese:</span>
-                                        <span class="name"><?= htmlspecialchars($animeData['japanese'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                                        <span class="name"><?= htmlspecialchars($animeData['japanese'] ?? 'N/A', ENT_QUOTES, 'UTF-8') ?></span>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">Synonyms:</span>
                                         <span class="name">
                                             <?= !empty($animeData['synonyms']) && trim($animeData['synonyms']) !== '' ? 
                                                 htmlspecialchars($animeData['synonyms']) : 
-                                                htmlspecialchars($animeData['japanese'] ?? '') ?>
+                                                htmlspecialchars($animeData['japanese'] ?? 'N/A') ?>
                                         </span>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">Aired:</span>
-                                        <span class="name"><?= htmlspecialchars($animeData['aired']) ?></span>
+                                        <span class="name"><?= htmlspecialchars($animeData['aired'] ?? 'N/A') ?></span>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">Premiered:</span>
-                                        <span class="name"><?= htmlspecialchars($animeData['premiered']) ?></span>
+                                        <span class="name"><?= htmlspecialchars($animeData['premiered'] ?? 'N/A') ?></span>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">Duration:</span>
-                                        <span class="name"><?= htmlspecialchars($animeData['duration']) ?></span>
+                                        <span class="name"><?= htmlspecialchars($animeData['duration'] ?? 'N/A') ?></span>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">Status:</span>
-                                        <span class="name"><?= htmlspecialchars($animeData['status']) ?></span>
+                                        <span class="name"><?= htmlspecialchars($animeData['status'] ?? 'N/A') ?></span>
                                     </div>
                                     <div class="item item-title">
                                         <span class="item-head">MAL Score:</span>
-                                        <span class="name"><?= htmlspecialchars($animeData['malscore']) ?></span>
+                                        <span class="name"><?= htmlspecialchars($animeData['malscore'] ?? 'N/A') ?></span>
                                     </div>
                                     <div class="item item-list">
                                         <span class="item-head">Genres:</span>
                                         <?php if (!empty($animeData['genres']) && is_array($animeData['genres'])): ?>
                                             <?php foreach ($animeData['genres'] as $genre): ?>
-                                                <a href="<?= htmlspecialchars($websiteUrl) ?>/genre/<?= strtolower(str_replace(" ", "+", htmlspecialchars($genre))) ?>" title="<?= htmlspecialchars($genre) ?>"><?= htmlspecialchars($genre) ?></a>
+                                                <a href="<?= htmlspecialchars($websiteUrl ?? '') ?>/genre/<?= strtolower(str_replace(" ", "+", htmlspecialchars($genre ?? ''))) ?>" title="<?= htmlspecialchars($genre ?? '') ?>"><?= htmlspecialchars($genre ?? '') ?></a>
                                             <?php endforeach; ?>
                                         <?php else: ?>
                                             <span>Genres not available</span>
@@ -290,15 +290,15 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                                 <span class="item-head">Studios:</span>
                                         <?php if (!empty($animeData['studio'])): ?>
                                             <?php 
-                                                $studios = explode(',', $animeData['studio']); // Split studios by comma
+                                                $studios = explode(',', $animeData['studio'] ?? ''); // Split studios by comma
                                                 $studioLinks = [];
-
-                                                foreach ($studios as $studio) {
-                                                    $studio = trim($studio); // Trim spaces
-                                                    $studioSlug = preg_replace('/[^a-z0-9-]+/', '', strtolower(str_replace(" ", "-", $studio)));
-                                                    $studioLinks[] = '<a class="name" href="/producer/' . htmlspecialchars($studioSlug) . '">' . htmlspecialchars($studio) . '</a>';
+                                                if (is_array($studios)) {
+                                                    foreach ($studios as $studio) {
+                                                        $studio = trim($studio); // Trim spaces
+                                                        $studioSlug = preg_replace('/[^a-z0-9-]+/', '', strtolower(str_replace(" ", "-", $studio)));
+                                                        $studioLinks[] = '<a class="name" href="/producer/' . htmlspecialchars($studioSlug) . '">' . htmlspecialchars($studio) . '</a>';
+                                                    }
                                                 }
-
                                                 echo implode(', ', $studioLinks); // Join studios with a comma and space
                                             ?>
                                         <?php else: ?>
@@ -310,19 +310,22 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                                         <div class="item item-title">
                                             <span class="item-head">Producers:</span>
                                             <?php if (!empty($animeData['producer']) && is_array($animeData['producer'])): ?>
-                                                <?php foreach ($animeData['producer'] as $producer): ?>
-                                                    <?php 
+                                                <?php
+                                                    $producerLinks = [];
+                                                    foreach ($animeData['producer'] as $producer):
+                                                        $producerText = htmlspecialchars($producer ?? '');
                                                         $producerSlug = preg_replace('/[^a-z0-9-]+/', '', strtolower(str_replace(" ", "-", $producer ?? '')));
-                                                    ?>
-                                                    <a class="name" href="/producer/<?= htmlspecialchars($producerSlug) ?>"><?= htmlspecialchars($producer) ?></a><?php if (next($animeData['producer'])) echo ','; ?>
-                                                <?php endforeach; ?>
+                                                        $producerLinks[] = '<a class="name" href="/producer/' . htmlspecialchars($producerSlug) . '">' . $producerText . '</a>';
+                                                    endforeach;
+                                                    echo implode(', ', $producerLinks);
+                                                ?>
                                             <?php else: ?>
                                                 <span>No producers available</span>
                                             <?php endif; ?>
                                         </div>
                                      <div class="film-text w-hide">
-                                        <?= htmlspecialchars($websiteTitle) ?> is the best site to watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?></strong> SUB online, or you can even watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname']) ?></strong> DUB in HD quality.
-                                        You can also find <a class="name" href="/producer/<?= htmlspecialchars(strtolower(str_replace(" ", "-", $animeData['studio']))) ?>"><strong><?= htmlspecialchars($animeData['studio']) ?></strong></a> anime on <?= htmlspecialchars($websiteTitle) ?> website.
+                                        <?= htmlspecialchars($websiteTitle ?? 'This website') ?> is the best site to watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'this anime') ?></strong> SUB online, or you can even watch <strong><?= htmlspecialchars($animeData['title'] ?? $animeData['jname'] ?? 'this anime') ?></strong> DUB in HD quality.
+                                        You can also find <a class="name" href="/producer/<?= htmlspecialchars(strtolower(str_replace(" ", "-", $animeData['studio'] ?? ''))) ?>"><strong><?= htmlspecialchars($animeData['studio'] ?? 'the studio') ?></strong></a> anime on <?= htmlspecialchars($websiteTitle ?? 'this website') ?> website.
                                     </div>
                                 </div>
                                 <div class="clearfix"></div>
@@ -348,10 +351,10 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                         <div class="clearfix"></div>
                     </div>
                     <div class="os-list">
-                        <?php foreach ($animeData['season'] as $season): ?>
-                            <a href="<?= $websiteUrl ?>/details/<?= $season['id'] ?>" class="os-item <?= $season['id'] === $animeId ? 'active' : '' ?>" title="<?= htmlspecialchars($season['title']) ?>">
-                                <div class="title"><?= htmlspecialchars($season['name']) ?></div>
-                                <div class="season-poster" style="background-image: url(<?= htmlspecialchars($season['poster']) ?>);"></div>
+                        <?php foreach (($animeData['season'] ?? []) as $season): ?>
+                            <a href="<?= htmlspecialchars($websiteUrl ?? '') ?>/details/<?= htmlspecialchars($season['id'] ?? '') ?>" class="os-item <?= ($season['id'] ?? '') === $animeId ? 'active' : '' ?>" title="<?= htmlspecialchars($season['title'] ?? '') ?>">
+                                <div class="title"><?= htmlspecialchars($season['name'] ?? 'N/A') ?></div>
+                                <div class="season-poster" style="background-image: url(<?= htmlspecialchars($season['poster'] ?? '') ?>);"></div>
                             </a>
                         <?php endforeach; ?>
                     </div>
@@ -359,7 +362,7 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                 <?php endif; ?>
 
                 <!-- Characters & Voice Actors -->
-                <?php if (!empty($animeData['actors'])): ?>
+                <?php if (!empty($animeData['actors']) && is_array($animeData['actors'])): ?>
                 <section class="block_area block_area-actors">
                     <div class="block_area-header">
                         <div class="float-left bah-heading mr-4">
@@ -372,32 +375,32 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                     </div>
                     <div class="block-actors-content">
                         <div class="bac-list-wrap">
-                            <?php foreach ($animeData['actors'] as $entry): ?>
+                            <?php foreach (($animeData['actors'] ?? []) as $entry): ?>
                                 <div class="bac-item">
                                     <div class="per-info ltr">
-                                        <a href="/character/<?= htmlspecialchars($entry['character']['id']) ?>" class="pi-avatar" rel="noopener noreferrer">
-                                            <img data-src="<?= htmlspecialchars($entry['character']['poster']) ?>" alt="<?= htmlspecialchars($entry['character']['name']) ?>" class="lazyloaded" src="<?= htmlspecialchars($entry['character']['poster']) ?>">
+                                        <a href="/character/<?= htmlspecialchars($entry['character']['id'] ?? '') ?>" class="pi-avatar" rel="noopener noreferrer">
+                                            <img data-src="<?= htmlspecialchars($entry['character']['poster'] ?? '') ?>" alt="<?= htmlspecialchars($entry['character']['name'] ?? 'N/A') ?>" class="lazyloaded" src="<?= htmlspecialchars($entry['character']['poster'] ?? '') ?>">
                                         </a>
                                         <div class="pi-detail">
                                             <h4 class="pi-name">
-                                                <a href="/character/<?= htmlspecialchars($entry['character']['id']) ?>" rel="noopener noreferrer">
-                                                    <?= htmlspecialchars($entry['character']['name']) ?>
+                                                <a href="/character/<?= htmlspecialchars($entry['character']['id'] ?? '') ?>" rel="noopener noreferrer">
+                                                    <?= htmlspecialchars($entry['character']['name'] ?? 'N/A') ?>
                                                 </a>
                                             </h4>
-                                            <span class="pi-cast"><?= htmlspecialchars($entry['character']['cast']) ?></span>
+                                            <span class="pi-cast"><?= htmlspecialchars($entry['character']['cast'] ?? 'N/A') ?></span>
                                         </div>
                                     </div> 
 
                                     <?php if (!empty($entry['voiceActors']) && is_array($entry['voiceActors'])): ?>
                                         <?php $voiceActor = $entry['voiceActors'][0]; // Get the first voice actor ?>
                                         <div class="per-info rtl">
-                                            <a href="/actors/<?= htmlspecialchars($voiceActor['id']) ?>" class="pi-avatar" rel="noopener noreferrer">
-                                                <img data-src="<?= htmlspecialchars($voiceActor['poster']) ?>" class="lazyloaded" alt="<?= htmlspecialchars($voiceActor['name']) ?>" src="<?= htmlspecialchars($voiceActor['poster']) ?>">
+                                            <a href="/actors/<?= htmlspecialchars($voiceActor['id'] ?? '') ?>" class="pi-avatar" rel="noopener noreferrer">
+                                                <img data-src="<?= htmlspecialchars($voiceActor['poster'] ?? '') ?>" class="lazyloaded" alt="<?= htmlspecialchars($voiceActor['name'] ?? 'N/A') ?>" src="<?= htmlspecialchars($voiceActor['poster'] ?? '') ?>">
                                             </a>
                                             <div class="pi-detail">
                                                 <h4 class="pi-name">
-                                                    <a href="/actors/<?= htmlspecialchars($voiceActor['id']) ?>" rel="noopener noreferrer">
-                                                        <?= htmlspecialchars($voiceActor['name']) ?>
+                                                    <a href="/actors/<?= htmlspecialchars($voiceActor['id'] ?? '') ?>" rel="noopener noreferrer">
+                                                        <?= htmlspecialchars($voiceActor['name'] ?? 'N/A') ?>
                                                     </a>
                                                 </h4>
                                             </div>
@@ -414,7 +417,7 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                 <?php endif; ?> 
 
                 <!-- Promotion Videos -->
-                <?php if (!empty($animeData['trailers'])): ?>
+                <?php if (!empty($animeData['trailers']) && is_array($animeData['trailers'])): ?>
                 <section class="block_area block_area-promotions">
                     <div class="block_area-header">
                         <div class="float-left bah-heading mr-4">
@@ -424,17 +427,17 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                     </div>
                     <div class="block_area-content block_area-promotions-list">
                         <div class="screen-items">
-                            <?php foreach ($animeData['trailers'] as $trailer): ?>
+                            <?php foreach (($animeData['trailers'] ?? []) as $trailer): ?>
                                 <div class="item">
-                                    <div class="screen-item-thumbnail" onclick="showTrailer(this)">
+                                    <div class="screen-item-thumbnail" onclick="showTrailer(this)"> <!-- Consider making showTrailer globally accessible or re-initializing if needed -->
                                         <span class="icon-play"><i class="fas fa-play"></i></span>
-                                        <img src="<?= htmlspecialchars($trailer['thumbnail']) ?>" class="sit-img">
+                                        <img src="<?= htmlspecialchars($trailer['thumbnail'] ?? '') ?>" class="sit-img" alt="<?= htmlspecialchars($trailer['title'] ?? 'Trailer Thumbnail') ?>">
                                     </div>
                                     <div class="screen-item-info">
-                                        <h3 class="sii-title"><?= htmlspecialchars($trailer['title']) ?></h3>
+                                        <h3 class="sii-title"><?= htmlspecialchars($trailer['title'] ?? 'N/A') ?></h3>
                                     </div>
                                     <div class="trailer-iframe" style="display: none;">
-                                        <iframe width="560" height="315" src="<?= htmlspecialchars($trailer['source']) ?>" frameborder="0" allowfullscreen></iframe>
+                                        <iframe width="560" height="315" src="<?= htmlspecialchars($trailer['source'] ?? '') ?>" frameborder="0" allowfullscreen></iframe>
                                     </div>
                                     <div class="clearfix"></div>
                                 </div>
@@ -476,35 +479,35 @@ $characterDataJson = json_encode($characterData, JSON_PRETTY_PRINT);
                     <div class="tab-content">
                         <div class="block_area-content block_area-list film_list film_list-grid film_list-wfeature">
                             <div class="film_list-wrap">
-                                <?php if (!empty($animeData['recommendedAnimes'])): ?>
-                                    <?php foreach ($animeData['recommendedAnimes'] as $recommendedAnime): ?>
+                                <?php if (!empty($animeData['recommendedAnimes']) && is_array($animeData['recommendedAnimes'])): ?>
+                                    <?php foreach (($animeData['recommendedAnimes'] ?? []) as $recommendedAnime): ?>
                                         <div class="flw-item">
                                             <div class="film-poster">
                                                 <div class="tick ltr">
-                                                    <?php if (!empty($recommendedAnime['episodes']['sub'])): ?>
-                                                        <div class="tick-item tick-sub"><i class="fas fa-closed-captioning mr-1"></i><?= htmlspecialchars($recommendedAnime['episodes']['sub']) ?></div>
+                                                    <?php if (!empty($recommendedAnime['episodes']['sub'] ?? null)): ?>
+                                                        <div class="tick-item tick-sub"><i class="fas fa-closed-captioning mr-1"></i><?= htmlspecialchars($recommendedAnime['episodes']['sub'] ?? '0') ?></div>
                                                     <?php endif; ?>
-                                                    <?php if (!empty($recommendedAnime['episodes']['dub'])): ?>
-                                                        <div class="tick-item tick-dub"><i class="fas fa-microphone mr-1"></i><?= htmlspecialchars($recommendedAnime['episodes']['dub']) ?></div>
+                                                    <?php if (!empty($recommendedAnime['episodes']['dub'] ?? null)): ?>
+                                                        <div class="tick-item tick-dub"><i class="fas fa-microphone mr-1"></i><?= htmlspecialchars($recommendedAnime['episodes']['dub'] ?? '0') ?></div>
                                                     <?php endif; ?>
-                                                    <div class="tick-item tick-eps"><?= htmlspecialchars($recommendedAnime['episodes']['sub'] ?? $recommendedAnime['episodes']['dub']) ?></div>
+                                                    <div class="tick-item tick-eps"><?= htmlspecialchars($recommendedAnime['episodes']['sub'] ?? $recommendedAnime['episodes']['dub'] ?? 'N/A') ?></div>
                                                 </div>
-                                                <img data-src="<?= htmlspecialchars($recommendedAnime['poster']) ?>" class="film-poster-img lazyloaded" alt="<?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname']) ?>" src="<?= htmlspecialchars($recommendedAnime['poster']) ?>">
-                                                <a href="/details/<?= htmlspecialchars($recommendedAnime['id']) ?>" class="film-poster-ahref item-qtip" data-id="<?= htmlspecialchars($recommendedAnime['id']) ?>" data-hasqtip="0" oldtitle="<?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname']) ?>" title="" aria-describedby="qtip-0"><i class="fas fa-play"></i></a>
+                                                <img data-src="<?= htmlspecialchars($recommendedAnime['poster'] ?? '') ?>" class="film-poster-img lazyloaded" alt="<?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname'] ?? 'Anime Poster') ?>" src="<?= htmlspecialchars($recommendedAnime['poster'] ?? '') ?>">
+                                                <a href="/details/<?= htmlspecialchars($recommendedAnime['id'] ?? '') ?>" class="film-poster-ahref item-qtip" data-id="<?= htmlspecialchars($recommendedAnime['id'] ?? '') ?>" data-hasqtip="0" oldtitle="<?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname'] ?? '') ?>" title="" aria-describedby="qtip-0"><i class="fas fa-play"></i></a>
                                             </div>
                                             <div class="film-detail">
-                                                <h3 class="film-name"><a href="/details/<?= htmlspecialchars($recommendedAnime['id']) ?>" title="<?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname']) ?>"><?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname']) ?></a></h3>
+                                                <h3 class="film-name"><a href="/details/<?= htmlspecialchars($recommendedAnime['id'] ?? '') ?>" title="<?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname'] ?? '') ?>"><?= htmlspecialchars($recommendedAnime['name'] ?? $recommendedAnime['jname'] ?? 'Anime Title') ?></a></h3>
                                                 <div class="fd-infor">
-                                                    <span class="fdi-item"><?= htmlspecialchars($recommendedAnime['type']) ?></span>
+                                                    <span class="fdi-item"><?= htmlspecialchars($recommendedAnime['type'] ?? 'N/A') ?></span>
                                                     <span class="dot"></span>
-                                                    <span class="fdi-item fdi-duration"><?= htmlspecialchars($recommendedAnime['duration']) ?></span>
+                                                    <span class="fdi-item fdi-duration"><?= htmlspecialchars($recommendedAnime['duration'] ?? 'N/A') ?></span>
                                                 </div>
                                             </div>
                                             <div class="clearfix"></div>
                                         </div>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <p>No recommended animes available</p>
+                                    <p>No recommended animes available.</p>
                                 <?php endif; ?>
                             </div>
                             <div class="clearfix"></div>

@@ -518,6 +518,20 @@ $totalVotes = $like_count + $dislike_count;
                                     <div class="clearfix"></div>
                                 </div>
                                 <?php endif; ?>
+
+                                <div id="download-options-area" style="display: none; margin-top: 20px; padding: 15px; background-color: #252525; border-radius: 5px; color: #fff;">
+                                    <h4>Download Options / Stream Links</h4>
+                                    <p style="font-size: 0.9em; color: #ccc;"><small>These are M3U8 playlist links. You can play these links directly in media players like VLC, or use third-party tools/browser extensions (e.g., Video DownloadHelper, JDownloader, or `yt-dlp` on your computer) to download the content.</small></p>
+                                    <div id="sub-download-link-container" style="margin-bottom: 10px; display: none;">
+                                        <strong>SUB M3U8:</strong> <a id="sub-m3u8-link-text" href="#" target="_blank" style="color: #ffc107; word-break: break-all;"></a>
+                                        <button class="btn btn-sm btn-secondary btn-copy-link" data-link-id="sub-m3u8-link-text" style="margin-left: 10px;">Copy Link</button>
+                                    </div>
+                                    <div id="dub-download-link-container" style="display: none;">
+                                        <strong>DUB M3U8:</strong> <a id="dub-m3u8-link-text" href="#" target="_blank" style="color: #ffc107; word-break: break-all;"></a>
+                                        <button class="btn btn-sm btn-secondary btn-copy-link" data-link-id="dub-m3u8-link-text" style="margin-left: 10px;">Copy Link</button>
+                                    </div>
+                                </div>
+
                                 <div id="episodes-content">
                                     <div class="seasons-block seasons-block-max">
                                         <div id="detail-ss-list" class="detail-seasons">
@@ -1265,6 +1279,52 @@ $totalVotes = $like_count + $dislike_count;
 
                 $(iframe).on('load', handleAutoNext);
 
+                // Fetch M3U8 link for download option when server is clicked
+                $('#download-options-area').hide();
+                $('#sub-download-link-container').hide();
+                $('#dub-download-link-container').hide();
+
+                // episodeId here is the one from data-episode-id, which is the full API episode ID
+                // currentEpisodeId is the one used for player (e.g. anime-slug?ep=1)
+                // We need currentEpisodeId for the new AJAX call, as it's what get_m3u8_link.php expects
+                const episodeIdForLink = $(this).data("episode-id"); // This is the API's internal episode ID (e.g. zoro_12345)
+                                                                    // but our new script expects the combined one.
+                                                                    // Let's use currentEpisodeId which is already defined in this scope
+                                                                    // and represents the stream ID like "jujutsu-kaisen-tv?ep=1"
+
+                $.ajax({
+                    url: '/src/ajax/get_m3u8_link.php',
+                    type: 'GET',
+                    data: {
+                        episodeId: currentEpisodeId, // Pass the stream ID (e.g. anime-slug?ep=1)
+                        serverName: serverName,      // serverName from the button
+                        serverType: serverType       // serverType from the button
+                    },
+                    dataType: 'json',
+                    success: function(apiData) { // Renamed to avoid conflict with existing 'data' variable
+                        if (apiData.success && apiData.m3u8_url) {
+                            if (apiData.serverType === 'sub') {
+                                $('#sub-m3u8-link-text').text(apiData.m3u8_url).attr('href', apiData.m3u8_url);
+                                $('#sub-download-link-container').show();
+                                $('#dub-download-link-container').hide(); // Hide the other one
+                            } else if (apiData.serverType === 'dub') {
+                                $('#dub-m3u8-link-text').text(apiData.m3u8_url).attr('href', apiData.m3u8_url);
+                                $('#dub-download-link-container').show();
+                                $('#sub-download-link-container').hide(); // Hide the other one
+                            }
+                            $('#download-options-area').show();
+                        } else {
+                            // console.error('Failed to get M3U8 link:', apiData.error);
+                             $('#download-options-area').hide();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // console.error('AJAX error fetching M3U8 link:', error);
+                        $('#download-options-area').hide();
+                    }
+                });
+
+
             });
 
             // Event listener for episode range selection
@@ -1337,6 +1397,21 @@ $totalVotes = $like_count + $dislike_count;
                     } else {
                         $expandIcon.removeClass('fa-compress').addClass('fa-expand');
                     }
+                });
+
+                // Copy link functionality
+                $('body').on('click', '.btn-copy-link', function() {
+                   var linkId = $(this).data('link-id');
+                   var linkText = $('#' + linkId).attr('href');
+                   if (linkText && linkText !== '#') {
+                       navigator.clipboard.writeText(linkText).then(function() {
+                           alert('Link copied to clipboard!');
+                       }, function(err) {
+                           alert('Failed to copy link. Your browser might not support this feature or permissions are denied.');
+                       });
+                   } else {
+                       alert('No link available to copy.');
+                   }
                 });
             });
 
