@@ -11,7 +11,7 @@ function fetchApi($url) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     $response = curl_exec($ch);
-    curl_close($ch);
+    // curl_close($ch); // Not strictly necessary
     return $response;
 }
 

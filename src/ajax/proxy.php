@@ -46,7 +46,7 @@ curl_setopt_array($ch, [
 $response = curl_exec($ch);
 $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+// curl_close($ch); // Not strictly necessary
 
 if ($response === false || $httpCode !== 200) {
     http_response_code($httpCode !== 200 ? $httpCode : 500);

@@ -29,10 +29,12 @@ if (isset($_GET['keyword'])) {
         $response = curl_exec($ch);
         
         if (curl_errno($ch)) {
+            // Consider closing $ch here if an error occurs before normal script end
+            // curl_close($ch);
             throw new Exception('Curl error: ' . curl_error($ch));
         }
         
-        curl_close($ch);
+        // curl_close($ch); // Not strictly necessary
 
         $data = json_decode($response, true);
 

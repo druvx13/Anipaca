@@ -34,16 +34,31 @@ class CommentSystem {
             LIMIT ? OFFSET ?
         ";
 
-        $stmt = $this->conn->prepare($query);
-        $stmt->bind_param("siii", 
-            $this->anime_id, 
-            $this->episode_id, 
-            $limit, 
-            $offset
-        );
-        
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt = null;
+        try {
+            $stmt = $this->conn->prepare($query);
+            if (!$stmt) {
+                error_log("MySQL Prepare Error in CommentSystem::getComments: " . $this->conn->error);
+                return [];
+            }
+            $stmt->bind_param("siii",
+                $this->anime_id,
+                $this->episode_id,
+                $limit,
+                $offset
+            );
+
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in CommentSystem::getComments: " . $e->getMessage());
+            return [];
+        } finally {
+            if ($stmt) {
+                $stmt->close();
+            }
+        }
     }
 
     private function getReplies($parent_id) {
@@ -60,19 +75,36 @@ class CommentSystem {
             ORDER BY c.created_at ASC
         ";
 
-        $stmt = $this->conn->prepare($query);
-        $stmt->bind_param("i", $parent_id);
-        $stmt->execute();
-        $replies = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt = null;
+        try {
+            $stmt = $this->conn->prepare($query);
+            if (!$stmt) {
+                error_log("MySQL Prepare Error in CommentSystem::getReplies: " . $this->conn->error);
+                return [];
+            }
+            $stmt->bind_param("i", $parent_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $replies = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 
-        foreach ($replies as &$reply) {
-            $reply['userReaction'] = $this->getUserReaction($reply['id']);
+            if ($replies) {
+                foreach ($replies as &$reply) {
+                    $reply['userReaction'] = $this->getUserReaction($reply['id']);
+                }
+            }
+            return $replies;
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in CommentSystem::getReplies: " . $e->getMessage());
+            return [];
+        } finally {
+            if ($stmt) {
+                $stmt->close();
+            }
         }
-
-        return $replies;
     }
 
     public function addComment($content, $username, $avatar_url) {
+        $stmt = null;
         try {
             if (empty($this->anime_id)) {
                 error_log("Error: anime_id is empty in addComment");
@@ -88,7 +120,7 @@ class CommentSystem {
             ");
             
             if (!$stmt) {
-                error_log("MySQL Prepare Error: " . $this->conn->error);
+                error_log("MySQL Prepare Error in CommentSystem::addComment: " . $this->conn->error);
                 return ['success' => false, 'message' => 'Failed to prepare statement'];
             }
             
@@ -119,12 +151,19 @@ class CommentSystem {
                     ]
                 ];
             } else {
-                error_log("MySQL Error in addComment: " . $stmt->error);
+                error_log("MySQL Execute Error in CommentSystem::addComment: " . $stmt->error);
                 return ['success' => false, 'message' => 'Failed to add comment'];
             }
-        } catch (Exception $e) {
-            error_log("Exception in addComment: " . $e->getMessage());
-            return ['success' => false, 'message' => 'Error processing comment'];
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in CommentSystem::addComment: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Error processing comment due to database issue.'];
+        } catch (Exception $e) { // Catch other non-mysqli exceptions
+            error_log("Non-DB Exception in CommentSystem::addComment: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Error processing comment.'];
+        } finally {
+            if ($stmt) {
+                $stmt->close();
+            }
         }
     }
 
@@ -139,10 +178,25 @@ class CommentSystem {
             WHERE c.id = ?
         ";
 
-        $stmt = $this->conn->prepare($query);
-        $stmt->bind_param("i", $comment_id);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_assoc();
+        $stmt = null;
+        try {
+            $stmt = $this->conn->prepare($query);
+            if (!$stmt) {
+                error_log("MySQL Prepare Error in CommentSystem::getCommentById: " . $this->conn->error);
+                return null;
+            }
+            $stmt->bind_param("i", $comment_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result ? $result->fetch_assoc() : null;
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in CommentSystem::getCommentById: " . $e->getMessage());
+            return null;
+        } finally {
+            if ($stmt) {
+                $stmt->close();
+            }
+        }
     }
 
     public function addReaction($comment_id, $type) {
@@ -150,18 +204,21 @@ class CommentSystem {
             return ['success' => false, 'message' => 'User not logged in'];
         }
 
+        $stmt = null;
         try {
             $this->conn->begin_transaction();
 
             // Check if user already reacted
-            $stmt = $this->conn->prepare("
+            $stmt_check = $this->conn->prepare("
                 SELECT type FROM comment_reactions 
                 WHERE comment_id = ? AND user_id = ?
             ");
-            $stmt->bind_param("ii", $comment_id, $this->user_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
+            if (!$stmt_check) throw new mysqli_sql_exception("Prepare failed for check: " . $this->conn->error);
+            $stmt_check->bind_param("ii", $comment_id, $this->user_id);
+            $stmt_check->execute();
+            $result = $stmt_check->get_result();
             $existing = $result->fetch_assoc();
+            $stmt_check->close(); // Close this statement
 
             if ($existing) {
                 if ($existing['type'] == $type) {
@@ -170,6 +227,7 @@ class CommentSystem {
                         DELETE FROM comment_reactions 
                         WHERE comment_id = ? AND user_id = ?
                     ");
+                    if (!$stmt) throw new mysqli_sql_exception("Prepare failed for delete: " . $this->conn->error);
                     $stmt->bind_param("ii", $comment_id, $this->user_id);
                     $stmt->execute();
                 } else {
@@ -179,6 +237,7 @@ class CommentSystem {
                         SET type = ? 
                         WHERE comment_id = ? AND user_id = ?
                     ");
+                    if (!$stmt) throw new mysqli_sql_exception("Prepare failed for update: " . $this->conn->error);
                     $stmt->bind_param("iii", $type, $comment_id, $this->user_id);
                     $stmt->execute();
                 }
@@ -188,9 +247,11 @@ class CommentSystem {
                     INSERT INTO comment_reactions (comment_id, user_id, type) 
                     VALUES (?, ?, ?)
                 ");
+                if (!$stmt) throw new mysqli_sql_exception("Prepare failed for insert: " . $this->conn->error);
                 $stmt->bind_param("iii", $comment_id, $this->user_id, $type);
                 $stmt->execute();
             }
+            if ($stmt) $stmt->close(); // Close the last used statement
 
             $this->conn->commit();
 
@@ -205,36 +266,73 @@ class CommentSystem {
                 'dislikes' => $dislikes,
                 'userReaction' => $userReaction
             ];
-        } catch (Exception $e) {
+        } catch (mysqli_sql_exception $e) {
             $this->conn->rollback();
-            error_log("Reaction error: " . $e->getMessage());
-            return ['success' => false, 'message' => 'Failed to update reaction'];
+            error_log("Database error in CommentSystem::addReaction: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to update reaction due to database error.'];
+        } catch (Exception $e) { // Catch other non-mysqli exceptions
+            $this->conn->rollback();
+            error_log("Non-DB error in CommentSystem::addReaction: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to update reaction.'];
+        } finally {
+            // Ensure any $stmt that might have been assigned in try is closed if an exception occurred before its explicit close
+            if ($stmt && $stmt->errno) { // Check if $stmt is an object and has an error number (might not be prepared)
+                 // $stmt->close(); // This might error if $stmt is not a valid statement object
+            }
         }
     }
 
     private function getReactionCount($comment_id, $type) {
-        $stmt = $this->conn->prepare("
-            SELECT COUNT(*) as count 
-            FROM comment_reactions 
-            WHERE comment_id = ? AND type = ?
-        ");
-        $stmt->bind_param("ii", $comment_id, $type);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_assoc()['count'];
+        $stmt = null;
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM comment_reactions
+                WHERE comment_id = ? AND type = ?
+            ");
+            if (!$stmt) {
+                error_log("MySQL Prepare Error in CommentSystem::getReactionCount: " . $this->conn->error);
+                return 0;
+            }
+            $stmt->bind_param("ii", $comment_id, $type);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result ? ($result->fetch_assoc()['count'] ?? 0) : 0;
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in CommentSystem::getReactionCount: " . $e->getMessage());
+            return 0;
+        } finally {
+            if ($stmt) {
+                $stmt->close();
+            }
+        }
     }
 
     private function getUserReaction($comment_id) {
         if (!$this->user_id) return null;
-        
-        $stmt = $this->conn->prepare("
-            SELECT type 
-            FROM comment_reactions 
-            WHERE comment_id = ? AND user_id = ?
-        ");
-        $stmt->bind_param("ii", $comment_id, $this->user_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        return $result->num_rows > 0 ? $result->fetch_assoc()['type'] : null;
+        $stmt = null;
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT type
+                FROM comment_reactions
+                WHERE comment_id = ? AND user_id = ?
+            ");
+            if (!$stmt) {
+                error_log("MySQL Prepare Error in CommentSystem::getUserReaction: " . $this->conn->error);
+                return null;
+            }
+            $stmt->bind_param("ii", $comment_id, $this->user_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result && $result->num_rows > 0 ? $result->fetch_assoc()['type'] : null;
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in CommentSystem::getUserReaction: " . $e->getMessage());
+            return null;
+        } finally {
+            if ($stmt) {
+                $stmt->close();
+            }
+        }
     }
 }
 ?> 

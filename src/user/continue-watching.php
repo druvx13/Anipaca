@@ -13,11 +13,41 @@ if (!isset($_COOKIE['userID'])) {
 
 // Get user data
 $user_id = $_COOKIE['userID'];
-$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+$user = null;
+$recent_watch_result = null;
+$total_items = 0;
+$latest_updates_result = null;
+$stmt = null;
+$count_stmt = null;
+
+try {
+    $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+        }
+    } else {
+        error_log("Error preparing user fetch statement in continue-watching: " . $conn->error);
+        exit("Error loading user data. Please try again later.");
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching user in continue-watching: " . $e->getMessage());
+    exit("Error loading user data. Please try again later.");
+} finally {
+    if ($stmt) {
+        $stmt->close();
+        $stmt = null; // Reset stmt for next query
+    }
+}
+
+if (!$user) {
+    // This case might be redundant if exit() is called above, but as a safeguard:
+    error_log("User data not loaded in continue-watching for user_id: " . $user_id);
+    exit("User data could not be loaded. Please ensure you are logged in.");
+}
 
 // Pagination setup
 $items_per_page = 12; // Number of items per page
@@ -31,18 +61,54 @@ $recent_watch_sql = "SELECT DISTINCT anime_id, anime_name, episode_number, poste
                      GROUP BY anime_id 
                      ORDER BY MAX(updated_at) DESC 
                      LIMIT ? OFFSET ?";
-$stmt = $conn->prepare($recent_watch_sql);
-$stmt->bind_param("iii", $user_id, $items_per_page, $offset);
-$stmt->execute();
-$recent_watch_result = $stmt->get_result();
+try {
+    $stmt = $conn->prepare($recent_watch_sql);
+    if ($stmt) {
+        $stmt->bind_param("iii", $user_id, $items_per_page, $offset);
+        $stmt->execute();
+        $recent_watch_result = $stmt->get_result();
+    } else {
+        error_log("Error preparing recent_watch_sql statement in continue-watching: " . $conn->error);
+        $recent_watch_result = null;
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching recent watch history: " . $e->getMessage());
+    $recent_watch_result = null;
+} finally {
+    if ($stmt) {
+        $stmt->close();
+        $stmt = null;
+    }
+}
 
 // Get total count for pagination
 $count_sql = "SELECT COUNT(DISTINCT anime_id) as total FROM watch_history WHERE user_id = ?";
-$count_stmt = $conn->prepare($count_sql);
-$count_stmt->bind_param("i", $user_id);
-$count_stmt->execute();
-$total_items = $count_stmt->get_result()->fetch_assoc()['total'];
-$total_pages = ceil($total_items / $items_per_page);
+try {
+    $count_stmt = $conn->prepare($count_sql);
+    if ($count_stmt) {
+        $count_stmt->bind_param("i", $user_id);
+        $count_stmt->execute();
+        $count_result = $count_stmt->get_result();
+        if ($count_result) {
+            $total_row = $count_result->fetch_assoc();
+            if ($total_row) {
+                $total_items = $total_row['total'];
+            }
+        }
+    } else {
+        error_log("Error preparing count_sql statement in continue-watching: " . $conn->error);
+        $total_items = 0;
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching total watch history count: " . $e->getMessage());
+    $total_items = 0;
+} finally {
+    if ($count_stmt) {
+        $count_stmt->close();
+        $count_stmt = null;
+    }
+}
+$total_pages = ($items_per_page > 0) ? ceil($total_items / $items_per_page) : 0;
 
 // Fetch latest updated episodes with pagination
 $latest_updates_sql = "SELECT wh.* 
@@ -56,10 +122,25 @@ $latest_updates_sql = "SELECT wh.*
                       WHERE wh.user_id = ?
                       ORDER BY wh.updated_at DESC 
                       LIMIT ? OFFSET ?";
-$stmt = $conn->prepare($latest_updates_sql);
-$stmt->bind_param("iii", $user_id, $items_per_page, $offset);
-$stmt->execute();
-$latest_updates_result = $stmt->get_result();
+try {
+    $stmt = $conn->prepare($latest_updates_sql);
+    if ($stmt) {
+        $stmt->bind_param("iii", $user_id, $items_per_page, $offset);
+        $stmt->execute();
+        $latest_updates_result = $stmt->get_result();
+    } else {
+        error_log("Error preparing latest_updates_sql statement in continue-watching: " . $conn->error);
+        $latest_updates_result = null;
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching latest updated episodes: " . $e->getMessage());
+    $latest_updates_result = null;
+} finally {
+    if ($stmt) {
+        $stmt->close();
+        $stmt = null;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -164,7 +245,7 @@ $latest_updates_result = $stmt->get_result();
         </div>
         <div class="block_area-content block_area-list film_list film_list-grid">
           <div class="film_list-wrap">
-            <?php if ($recent_watch_result->num_rows > 0): ?>
+            <?php if ($recent_watch_result && $recent_watch_result->num_rows > 0): ?>
               <?php while($anime = $recent_watch_result->fetch_assoc()): ?>
                 <div class="flw-item">
                   <div class="film-poster">

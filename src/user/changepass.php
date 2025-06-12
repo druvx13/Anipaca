@@ -3,23 +3,47 @@ require_once($_SERVER['DOCUMENT_ROOT'] . '/_config.php');
 
 session_start();
 
+$fetch = null;
+$stmt = null;
+$update_stmt = null;
+$message = []; // Ensure message array is initialized
+
 if(!isset($_COOKIE['userID'])){
   header('location:../user/login.php');
+  exit; // Add exit after header redirect
 };
 
 if(isset($_COOKIE['userID'])){
-  $user_id =$_COOKIE['userID'];
+  $user_id = $_COOKIE['userID'];
 };
 
+try {
+    $stmt = $conn->prepare("SELECT * FROM `users` WHERE id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if($result && $result->num_rows > 0){
+           $fetch = $result->fetch_assoc();
+        }
+    } else {
+        // This case should ideally be caught by mysqli_report if enabled
+        error_log("Error preparing statement for fetching user data in changepass: " . $conn->error);
+        $message[] = "Could not load user data due to a server error. Please try again.";
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching user data in changepass: " . $e->getMessage());
+    $message[] = "Could not load user data. Please try again.";
+} finally {
+    if ($stmt) {
+        $stmt->close();
+    }
+}
 
-      $stmt = $conn->prepare("SELECT * FROM `users` WHERE id = ?");
-      $stmt->bind_param("i", $user_id);
-      $stmt->execute();
-      $result = $stmt->get_result();
-      if($result->num_rows > 0){
-         $fetch = $result->fetch_assoc();
-      }
-      if(isset($_POST['update_profile'])){
+if(isset($_POST['update_profile'])){
+    if (!$fetch) {
+        $message[] = "User data not available, cannot update password.";
+    } else {
 $current_pass = $_POST['update_pass'];
 $new_pass = $_POST['new_pass'];
 $confirm_pass = $_POST['confirm_pass'];
@@ -30,19 +54,34 @@ if(!empty($current_pass) || !empty($new_pass) || !empty($confirm_pass)){
    }elseif($new_pass != $confirm_pass){
       $message[] = 'Confirm Password Not Matched!';
    }else{
-      $hashed_password = password_hash($new_pass, PASSWORD_DEFAULT);
-      $update_stmt = $conn->prepare("UPDATE `users` SET password = ? WHERE id = ?");
-      $update_stmt->bind_param("si", $hashed_password, $user_id);
-      
-      if($update_stmt->execute()){
-         $message2[] = 'Password Updated Successfully!';
-      } else {
-         $message[] = 'Failed to update password!';
+      try {
+          $hashed_password = password_hash($new_pass, PASSWORD_DEFAULT);
+          $update_stmt = $conn->prepare("UPDATE `users` SET password = ? WHERE id = ?");
+          if ($update_stmt) {
+              $update_stmt->bind_param("si", $hashed_password, $user_id);
+
+              if($update_stmt->execute()){
+                 $message2[] = 'Password Updated Successfully!';
+              } else {
+                 // This else might not be reached if execute throws exception on failure
+                 $message[] = 'Failed to update password!';
+              }
+          } else {
+              error_log("Error preparing statement for password update in changepass: " . $conn->error);
+              $message[] = "Failed to update password due to a server error.";
+          }
+      } catch (mysqli_sql_exception $e) {
+          error_log("Error updating password: " . $e->getMessage());
+          $message[] = "Failed to update password due to a database error.";
+      } finally {
+          if ($update_stmt) {
+              $update_stmt->close();
+          }
       }
-      $update_stmt->close();
    }
 }
-      }
+    } // End of else for if (!$fetch)
+}
 ?>
 <!DOCTYPE html>
 <html prefix="og: http://ogp.me/ns#" xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">

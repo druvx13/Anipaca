@@ -11,12 +11,44 @@ if (!isset($_COOKIE['userID'])) {
 }
 
 $user_id = $_COOKIE['userID'];
-$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+$user = null;
+$site_watchlist_result = null;
+$total_site_items = 0;
+$stmt = null;
+$site_stmt = null;
+$count_site_stmt = null;
 
+try {
+    $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+        }
+    } else {
+        error_log("Error preparing user fetch statement in watchlist: " . $conn->error);
+        header('location:/login');
+        exit("Error loading user data.");
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching user in watchlist: " . $e->getMessage());
+    header('location:/login');
+    exit("Error loading user data.");
+} finally {
+    if ($stmt) {
+        $stmt->close();
+        $stmt = null;
+    }
+}
+
+if (!$user) {
+    // This might be redundant if exit() is called above, but as a safeguard
+    error_log("User data not loaded in watchlist for user_id: " . $user_id);
+    header('location:/login');
+    exit("User data could not be loaded. Please ensure you are logged in.");
+}
 
 $page = $_GET['page'] ?? 1;
 $items_per_page = 10; 
@@ -42,24 +74,66 @@ if ($type !== null) {
 }
 $site_watchlist_sql .= " LIMIT ? OFFSET ?";
 
-$site_stmt = $conn->prepare($site_watchlist_sql);
-if ($type !== null) {
-    $site_stmt->bind_param("iiii", $user_id, $type, $items_per_page, $offset);
-} else {
-    $site_stmt->bind_param("iii", $user_id, $items_per_page, $offset);
+try {
+    $site_stmt = $conn->prepare($site_watchlist_sql);
+    if ($site_stmt) {
+        if ($type !== null) {
+            $site_stmt->bind_param("iiii", $user_id, $type, $items_per_page, $offset);
+        } else {
+            $site_stmt->bind_param("iii", $user_id, $items_per_page, $offset);
+        }
+        $site_stmt->execute();
+        $site_watchlist_result = $site_stmt->get_result();
+    } else {
+        error_log("Error preparing site_watchlist_sql statement: " . $conn->error);
+        $site_watchlist_result = null;
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching site watchlist: " . $e->getMessage());
+    $site_watchlist_result = null;
+} finally {
+    if ($site_stmt) {
+        $site_stmt->close();
+        // $site_stmt = null; // Not strictly necessary here as it's not reused
+    }
 }
-$site_stmt->execute();
-$site_watchlist_result = $site_stmt->get_result();
-
 
 $count_site_sql = "SELECT COUNT(*) as total FROM watchlist WHERE user_id = ?";
-$count_site_stmt = $conn->prepare($count_site_sql);
-$count_site_stmt->bind_param("i", $user_id);
-$count_site_stmt->execute();
-$total_site_items = $count_site_stmt->get_result()->fetch_assoc()['total'];
+if ($type !== null) { // Also filter count by status if a status is set
+    $count_site_sql .= " AND type = ?";
+}
 
+try {
+    $count_site_stmt = $conn->prepare($count_site_sql);
+    if ($count_site_stmt) {
+        if ($type !== null) {
+            $count_site_stmt->bind_param("ii", $user_id, $type);
+        } else {
+            $count_site_stmt->bind_param("i", $user_id);
+        }
+        $count_site_stmt->execute();
+        $count_result = $count_site_stmt->get_result();
+        if ($count_result) {
+            $total_row = $count_result->fetch_assoc();
+            if ($total_row) {
+                $total_site_items = $total_row['total'];
+            }
+        }
+    } else {
+        error_log("Error preparing count_site_sql statement: " . $conn->error);
+        $total_site_items = 0;
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching watchlist count: " . $e->getMessage());
+    $total_site_items = 0;
+} finally {
+    if ($count_site_stmt) {
+        $count_site_stmt->close();
+        // $count_site_stmt = null; // Not strictly necessary
+    }
+}
 
-$total_pages = ceil($total_site_items / $items_per_page);
+$total_pages = ($items_per_page > 0 && $total_site_items > 0) ? ceil($total_site_items / $items_per_page) : 0;
 ?>
 
 
@@ -190,7 +264,7 @@ $total_pages = ceil($total_site_items / $items_per_page);
                 <div class="tab-pane fade show active" id="site">
                     <div class="block_area-content block_area-list film_list film_list-grid">
                         <div class="film_list-wrap">
-                            <?php if ($site_watchlist_result->num_rows > 0): ?>
+                            <?php if ($site_watchlist_result && $site_watchlist_result->num_rows > 0): ?>
                                 <?php while($anime = $site_watchlist_result->fetch_assoc()): ?>
                                     <div class="flw-item">
                                         <div class="film-poster">

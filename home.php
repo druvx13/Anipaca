@@ -15,9 +15,10 @@ $response = curl_exec($ch);
 
 if (curl_errno($ch)) {
     echo 'Curl error: ' . curl_error($ch);
+    // curl_close($ch); // Automatically closed when script ends or $ch handle is garbage collected
     exit;
 }
-curl_close($ch);
+// curl_close($ch); // Not strictly necessary as PHP auto-closes on script end.
 
 $data = json_decode($response, true);
 
@@ -126,13 +127,25 @@ $data = $data['results'];
                 <div id="main-content" class="lazy-component" data-component="main-content">
                     <?php if (isset($_COOKIE['userID'])) {
                         $user_id = $_COOKIE['userID'];
-                        $sql = "SELECT * FROM watch_history WHERE user_id = ? GROUP BY anime_id, episode_number  ORDER BY MAX(id) DESC  LIMIT 4";
-                        $stmt = mysqli_prepare($conn, $sql);
-                        mysqli_stmt_bind_param($stmt, "i", $user_id);
-                        mysqli_stmt_execute($stmt);
-                        $result = mysqli_stmt_get_result($stmt);
+                        $result = null; // Initialize $result
+                        $stmt = null; // Initialize $stmt
+                        try {
+                            $sql = "SELECT * FROM watch_history WHERE user_id = ? GROUP BY anime_id, episode_number  ORDER BY MAX(id) DESC  LIMIT 4";
+                            $stmt = mysqli_prepare($conn, $sql);
+                            if ($stmt) {
+                                mysqli_stmt_bind_param($stmt, "i", $user_id);
+                                mysqli_stmt_execute($stmt);
+                                $result = mysqli_stmt_get_result($stmt);
+                            } else {
+                                // Optional: Log if prepare failed, though MYSQLI_REPORT_ERROR should throw an exception
+                                error_log("MySQLi prepare failed in home.php for continue watching: " . mysqli_error($conn));
+                            }
+                        } catch (mysqli_sql_exception $e) {
+                            error_log("Error fetching continue watching in home.php: " . $e->getMessage());
+                            // $result remains null, section will be skipped
+                        }
                         
-                        if ($result->num_rows > 0) { ?>
+                        if ($result && $result->num_rows > 0) { ?>
                             <section class="block_area block_area_home">
                                 <div class="block_area-header">
                                     <div class="float-left bah-heading mr-4">
@@ -188,7 +201,12 @@ $data = $data['results'];
                                     </div>
                                 </div>
                             </section>
-                        <?php }
+                        <?php
+                        }
+                        if ($stmt) {
+                            mysqli_stmt_close($stmt);
+                        }
+                        // No need to close $result explicitly if it was from mysqli_stmt_get_result and stmt is closed
                        
                     } 
                     ?>

@@ -7,6 +7,10 @@ ini_set('display_errors', 1);
 
 session_start();
 
+$user = null;
+$stmt = null;
+$update_stmt = null;
+
 // Check if user is logged in
 if (!isset($_COOKIE['userID'])) {
     header('location:/login');
@@ -14,18 +18,45 @@ if (!isset($_COOKIE['userID'])) {
 }
 
 $user_id = $_COOKIE['userID'];
-$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+
+try {
+    $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+        }
+    } else {
+        error_log("Error preparing statement for fetching user data in profile: " . $conn->error);
+        header('location:/login');
+        exit("Error loading user data.");
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log("Error fetching user data in profile: " . $e->getMessage());
+    header('location:/login');
+    exit("Error loading user data.");
+} finally {
+    if ($stmt) {
+        $stmt->close();
+    }
+}
+
+if (!$user) {
+    // This might be redundant if exit() is called above, but as a safeguard
+    error_log("User data not loaded in profile for user_id: " . $user_id);
+    header('location:/login');
+    exit("User data could not be loaded. Please ensure you are logged in.");
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
     $response = array();
+    $update_stmt = null; // Initialize for AJAX part
 
     try {
-        $username = mysqli_real_escape_string($conn, $_POST['name']);
-        $avatar = isset($_POST['avatar_image']) ? mysqli_real_escape_string($conn, $_POST['avatar_image']) : null;
+        $username = $_POST['name']; // Removed mysqli_real_escape_string
+        $avatar = isset($_POST['avatar_image']) ? $_POST['avatar_image'] : null; // Removed mysqli_real_escape_string
 
         if (empty($username)) {
             $response['status'] = 'error';
@@ -45,9 +76,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             $response['status'] = 'error';
             $response['message'] = 'Failed to update profile';
         }
-    } catch (Exception $e) {
+    } catch (mysqli_sql_exception $e) {
+        error_log("Error updating profile: " . $e->getMessage());
+        $response['status'] = 'error';
+        $response['message'] = 'Database error during profile update.';
+    } catch (Exception $e) { // General exception catcher for other issues
+        error_log("Non-DB error updating profile: " . $e->getMessage());
         $response['status'] = 'error';
         $response['message'] = 'An error occurred: ' . $e->getMessage();
+    } finally {
+        if ($update_stmt) {
+            $update_stmt->close();
+        }
     }
 
     header('Content-Type: application/json');

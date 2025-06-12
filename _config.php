@@ -1,12 +1,26 @@
 
 <?php 
 
-$conn = new mysqli("HOSTNAME", "USERNAME", "PASSWORD", "DATABASE"); //just like $conn = new mysqli("localhost", "root", "", "anipaca");
+// Production Error Reporting (recommended for shared hosting)
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+// Optional: Set a specific error log path if you know it and have write permissions.
+// ini_set('error_log', '/path/to/your/php_error.log');
+// Shared hosting usually has a default error log path configured,
+// so explicitly setting it might not be necessary or might be restricted.
 
+// Set error reporting level (E_ALL & ~E_DEPRECATED & ~E_STRICT is common for production)
+// This ensures notices and deprecation warnings during development don't break pages
+// but all other errors are logged.
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 
-if ($conn->connect_error) {
-    error_log("Database connection failed: " . $conn->connect_error);
-    echo("Database connection failed.");
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+try {
+    $conn = new mysqli("HOSTNAME", "USERNAME", "PASSWORD", "DATABASE"); //just like $conn = new mysqli("localhost", "root", "", "anipaca");
+} catch (mysqli_sql_exception $e) {
+    error_log("Database connection failed: " . $e->getMessage());
+    die("Database connection failed. Please try again later or contact support.");
 }
 
 $websiteTitle = "AniPaca";

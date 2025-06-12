@@ -286,8 +286,14 @@
         if (isset($_COOKIE['userID'])) {
             $user_id = $_COOKIE['userID'];
             $select = "SELECT * FROM users WHERE id = '$user_id'";
-            $result = mysqli_query($conn, $select);
-            if (mysqli_num_rows($result) > 0) {
+            $result = null; // Initialize $result
+            try {
+                $result = mysqli_query($conn, $select);
+            } catch (mysqli_sql_exception $e) {
+                error_log("Error fetching user for header: " . $e->getMessage());
+                // $result remains null, subsequent check mysqli_num_rows($result) > 0 will be false
+            }
+            if ($result && mysqli_num_rows($result) > 0) { // Added check for $result
                 $fetch = mysqli_fetch_assoc($result);
         ?>
                 <div id="header_right">

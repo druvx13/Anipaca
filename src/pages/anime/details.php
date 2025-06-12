@@ -23,26 +23,29 @@ $isLoggedIn = isset($_COOKIE['userID']) && !empty($_COOKIE['userID']);
 $watchlistStatus = null;
 
 if ($isLoggedIn) {
+    // $watchlistStatus is already initialized to null before this block
+    $stmt = null; // Initialize stmt
     try {
-    
         $stmt = $mysqli->prepare("SELECT type FROM watchlist WHERE user_id = ? AND anime_id = ? LIMIT 1");
-        if (!$stmt) {
-            throw new Exception("Prepare failed: " . $mysqli->error);
-        }
+        // No need for `if (!$stmt)` if MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT is set, as prepare will throw.
         
-        $stmt->bind_param("is", $_SESSION['userID'], $animeId); 
+        $stmt->bind_param("is", $_COOKIE['userID'], $animeId); // Corrected to use $_COOKIE['userID'] as per other files, assuming session might not be reliably set here.
         $stmt->execute();
         $result = $stmt->get_result();
         
         if ($result && $row = $result->fetch_assoc()) {
             $watchlistStatus = (int)$row['type'];
         }
-        
-        $stmt->close();
-    } catch (Exception $e) {
-        error_log("Error checking watchlist status: " . $e->getMessage());
-      
-        $watchlistStatus = null;
+        // $result->close(); // Good practice if $result is substantial, though often implicitly closed.
+        if ($stmt) {
+            $stmt->close();
+        }
+    } catch (mysqli_sql_exception $e) {
+        error_log("Database error fetching watchlist status on details page: " . $e->getMessage());
+        // $watchlistStatus remains null, which is the desired behavior on error.
+        if ($stmt) { // Ensure stmt is closed if it was prepared before an error occurred
+            $stmt->close();
+        }
     }
 }
 

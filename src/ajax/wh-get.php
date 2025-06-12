@@ -32,58 +32,63 @@ if (!$userId) {
     exit;
 }
 
-// Check database connection
-if (!$conn || $conn->connect_error) {
-    error_log("Database connection failed: " . ($conn ? $conn->connect_error : 'Connection object is null'));
+// Check database connection - This should be handled by mysqli_report if set in _config.php
+// However, keeping a basic check can be a fallback if _config.php is ever misconfigured.
+if (!$conn) { // Simplified check, connect_error will be caught by mysqli_report
+    error_log("Database connection object is null in wh-get.php");
     echo json_encode([
         'success' => false,
-        'error' => 'Database connection failed'
+        'error' => 'Database connection error. Please try again later.'
     ]);
     exit;
 }
 
+$stmt = null;
 try {
     // Query database to get watched episodes for this anime and user
     $sql = "SELECT episodes_watched FROM watched_episode WHERE anime_id = ? AND user_id = ?";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
+        // This should ideally be caught by mysqli_report if enabled
+        error_log("Failed to prepare statement in wh-get.php: " . $conn->error);
         echo json_encode([
             'success' => false,
-            'error' => 'Failed to prepare the SQL query'
+            'error' => 'Error retrieving watch history data.'
         ]);
         exit;
     }
 
     $stmt->bind_param('si', $animeId, $userId);
-
-    if (!$stmt->execute()) {
-        echo json_encode([
-            'success' => false,
-            'error' => 'Failed to execute query: ' . $stmt->error
-        ]);
-        exit;
-    }
-
+    $stmt->execute();
     $result = $stmt->get_result();
+
     $watchedEpisodes = [];
-    while ($row = $result->fetch_assoc()) {
-        // Assuming episodes_watched is stored as a comma-separated list
-        $episodes = explode(',', $row['episodes_watched']);
-        foreach ($episodes as $episode) {
-            // Add episode to the watched list
-            $watchedEpisodes[] = (int)$episode;
+    if ($result) { // Check if result is valid
+        while ($row = $result->fetch_assoc()) {
+            // Assuming episodes_watched is stored as a comma-separated list
+            if (!empty($row['episodes_watched'])) {
+                $episodes = explode(',', $row['episodes_watched']);
+                foreach ($episodes as $episode) {
+                    // Add episode to the watched list
+                    $watchedEpisodes[] = (int)$episode;
+                }
+            }
         }
     }
 
     echo json_encode([
         'success' => true,
-        'watchedEpisodes' => $watchedEpisodes
+        'watchedEpisodes' => array_unique($watchedEpisodes) // Ensure unique episodes
     ]);
 
-} catch (Exception $e) {
-    error_log("Watch history error: " . $e->getMessage());
+} catch (mysqli_sql_exception $e) {
+    error_log("Watch History Get Error: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'error' => 'Error retrieving watch history: ' . $e->getMessage()
+        'error' => 'Error retrieving watch history.'
     ]);
+} finally {
+    if ($stmt) {
+        $stmt->close();
+    }
 }

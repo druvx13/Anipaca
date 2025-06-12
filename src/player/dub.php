@@ -38,7 +38,7 @@ foreach ($categories as $category) {
         }
     }
 }
-curl_close($ch);
+// curl_close($ch); // Not strictly necessary
 
 if (!isset($data['results']['streamingLink']['link']['file'])) {
     echo '<div style="position: relative; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden;">

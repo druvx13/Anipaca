@@ -7,15 +7,21 @@ require_once($_SERVER['DOCUMENT_ROOT'] . '/_config.php');
 $episodeParam = $_GET['episodeId'] ?? null;
 $api_url = "$zpi/servers/" . $episodeParam;
 
-$response = @file_get_contents($api_url);
-
+// $response = @file_get_contents($api_url); // Old way
+$response = file_get_contents($api_url);
 if ($response === false) {
+    $last_error = error_get_last();
+    $error_message = 'Failed to fetch server information from API.';
+    if ($last_error !== null) {
+        $error_message .= " Error: " . $last_error['message'];
+    }
+    error_log("server.php - API call failed for URL (" . $api_url . "): " . ($last_error['message'] ?? 'Unknown error'));
     echo json_encode([
         'success' => false,
-        'error' => 'Invalid API response',
+        'error' => 'Failed to fetch server information. Please try again later.',
         'debug' => [
-            'raw_response' => $response,
-            'url_called' => $api_url
+            'url_called' => $api_url,
+            'raw_response' => $response // Will be false here
         ]
     ]);
     exit;

@@ -13,17 +13,25 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 if(isset($_POST['submit']) || isset($_POST['anilist_login'])){
-   $login = mysqli_real_escape_string($conn, $_POST['login']);
-   $password = $_POST['password'];
-   $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
-   $stmt->bind_param("ss", $_POST['login'], $_POST['login']);
-   $stmt->execute();
-   $result = $stmt->get_result();
-   
-   if($result->num_rows > 0){
-      $row = $result->fetch_assoc();
-      if(password_verify($_POST['password'], $row['password'])) {
-          $_SESSION['userID'] = $row['id'];
+   $stmt = null;
+   $result = null;
+   $row = null;
+   $message = []; // Ensure message array is initialized
+
+   try {
+       $login = $_POST['login']; // Removed mysqli_real_escape_string as it's used in a prepared statement
+       // $password = $_POST['password']; // Password itself is not directly used in query, but verified later
+
+       $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ?");
+       if ($stmt) {
+           $stmt->bind_param("ss", $login, $login); // Use the raw $login variable
+           $stmt->execute();
+           $result = $stmt->get_result();
+
+           if($result && $result->num_rows > 0){
+              $row = $result->fetch_assoc();
+              if(password_verify($_POST['password'], $row['password'])) {
+                  $_SESSION['userID'] = $row['id'];
           setcookie('userID', $row['id'], time() + 60*60*24*30*12, '/');
           
           if(isset($_GET['animeId'])){
@@ -38,11 +46,23 @@ if(isset($_POST['submit']) || isset($_POST['anilist_login'])){
               header('location:../../home');
               exit();
           }
-      } else {
-          $message[] = 'Incorrect password!';
-      }
-   } else {
-      $message[] = 'User not found!';
+              } else {
+                  $message[] = 'Incorrect password!';
+              }
+           } else {
+              $message[] = 'User not found!';
+           }
+       } else {
+           error_log("Error preparing login statement: " . $conn->error);
+           $message[] = "Login failed due to a server error. Please try again later.";
+       }
+   } catch (mysqli_sql_exception $e) {
+       error_log("Database error during login: " . $e->getMessage());
+       $message[] = "Login failed due to a database error. Please try again later.";
+   } finally {
+       if ($stmt) {
+           $stmt->close();
+       }
    }
 }
 ?>

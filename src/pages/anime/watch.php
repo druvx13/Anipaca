@@ -53,32 +53,41 @@ if (!isset($_SESSION['viewed_pages'])) {
 }
 $counter = 0;
 if (!in_array($pageID, $_SESSION['viewed_pages'])) {
-    $query = mysqli_query($conn, "SELECT * FROM `pageview` WHERE pageID = '$pageID'");
-    if (!$query) {
-        echo "Database query failed: " . mysqli_error($conn);
-        exit;
+    $rows = null; // Initialize $rows
+    $query = null;
+    try {
+        $query = mysqli_query($conn, "SELECT * FROM `pageview` WHERE pageID = '$pageID'");
+        if ($query) {
+            $rows = mysqli_fetch_array($query);
+        }
+    } catch (mysqli_sql_exception $e) {
+        error_log("Error selecting pageview: " . $e->getMessage());
+        // $rows remains null, subsequent logic will use default values
     }
-    $rows = mysqli_fetch_array($query);
+
     $counter = $rows['totalview'] ?? 0;
-    $id = $rows['id'] ?? null;
+    // $id = $rows['id'] ?? null; // id is not used later, can be removed if not needed elsewhere
+
     if ($counter === 0) {
-        $counter = 1;
-        $insertQuery = mysqli_query($conn, "INSERT INTO `pageview` (pageID, totalview, like_count, dislike_count, animeID) VALUES('$pageID', '$counter', '1', '0', '$animeId')");
-        if (!$insertQuery) {
-            echo "Failed to insert pageview count: " . mysqli_error($conn);
-            exit;
+        $counter = 1; // Set initial counter for new page
+        try {
+            mysqli_query($conn, "INSERT INTO `pageview` (pageID, totalview, like_count, dislike_count, animeID) VALUES('$pageID', '$counter', '0', '0', '$animeId')"); // Initial likes/dislikes to 0
+        } catch (mysqli_sql_exception $e) {
+            error_log("Error inserting pageview: " . $e->getMessage());
         }
     } else {
         $counter++;
-        $updateQuery = mysqli_query($conn, "UPDATE `pageview` SET totalview = '$counter' WHERE pageID = '$pageID'");
-        if (!$updateQuery) {
-            echo "Failed to update pageview count: " . mysqli_error($conn);
-            exit;
+        try {
+            mysqli_query($conn, "UPDATE `pageview` SET totalview = '$counter' WHERE pageID = '$pageID'");
+        } catch (mysqli_sql_exception $e) {
+            error_log("Error updating pageview: " . $e->getMessage());
         }
     }
     $_SESSION['viewed_pages'][] = $pageID;
 }
 
+// These should be fetched fresh if needed, or ensure $rows is correctly populated if page was already viewed in session.
+// For simplicity, if $rows is null (error or not in DB yet), these will be 0.
 $like_count = $rows['like_count'] ?? 0;
 $dislike_count = $rows['dislike_count'] ?? 0;
 $totalVotes = $like_count + $dislike_count;
@@ -624,14 +633,21 @@ $totalVotes = $like_count + $dislike_count;
 
                                                 <div class="tac tick-item tick-eps">
                                                     <?php
-                                                    $query = mysqli_query($conn, "SELECT totalview FROM `pageview` WHERE pageID = '$pageID'");
-                                                    if ($query) {
-                                                        $row = mysqli_fetch_assoc($query);
-                                                        $counter = $row['totalview'] ?? 0;
-                                                        echo "VIEWS: " . $counter;
-                                                    } else {
-                                                        echo "Failed to retrieve views.";
+                                                    $display_views_row = null;
+                                                    $display_views_counter = 0;
+                                                    try {
+                                                        $query_display_views = mysqli_query($conn, "SELECT totalview FROM `pageview` WHERE pageID = '$pageID'");
+                                                        if ($query_display_views) {
+                                                            $display_views_row = mysqli_fetch_assoc($query_display_views);
+                                                            if ($display_views_row) {
+                                                                $display_views_counter = $display_views_row['totalview'];
+                                                            }
+                                                        }
+                                                    } catch (mysqli_sql_exception $e) {
+                                                        error_log("Error fetching pageview count for display: " . $e->getMessage());
+                                                        // $display_views_counter remains 0
                                                     }
+                                                    echo "VIEWS: " . $display_views_counter;
                                                     ?>
                                                 </div>
                                                 <div class="clearfix"></div>

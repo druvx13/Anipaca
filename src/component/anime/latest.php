@@ -22,7 +22,7 @@
                                     curl_setopt($ch, CURLOPT_URL, "$zpi/recently-updated");
                                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                                     $json = curl_exec($ch);
-                                    curl_close($ch);
+                                    // curl_close($ch); // Not strictly necessary
                                     $json = json_decode($json, true);
 
                                     // Check if 'results' and 'data' exist

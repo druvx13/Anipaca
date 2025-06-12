@@ -38,7 +38,7 @@ foreach ($categories as $category) {
         }
     }
 }
-curl_close($ch);
+// curl_close($ch); // Not strictly necessary
 if (!isset($data['results']['streamingLink']['link']['file'])) {
     echo '<div style="position: relative; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden;">
         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: url(https://anipaca.fun/public/images/404.gif) no-repeat center center; background-size: cover; filter: blur(5px); z-index: 0;"></div>

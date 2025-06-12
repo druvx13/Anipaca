@@ -7,6 +7,11 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+$check_stmt = null;
+$next_id_result = null; // Though this is directly used with ->fetch_assoc()
+$insert_stmt = null;
+$message = [];
+
 // Get all files from the /avatar directory
 $avatarFiles = array(
     "https://cdn.noitatnemucod.net/avatar/100x100/demon_splayer/File15.jpg",
@@ -88,44 +93,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // If no validation errors, proceed with registration
-    if (!isset($message)) {
-        // Hash password
+    if (empty($message)) { // Changed from !isset($message) to empty($message)
         $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+        $email_exists = false;
+        try {
+            $check_stmt = $conn->prepare("SELECT email FROM users WHERE email = ?");
+            if ($check_stmt) {
+                $check_stmt->bind_param("s", $email);
+                $check_stmt->execute();
+                $result = $check_stmt->get_result();
+                if ($result && $result->num_rows > 0) {
+                    $email_exists = true;
+                }
+            } else {
+                error_log("Error preparing email check statement: " . $conn->error);
+                $message[] = "Database error during registration. Please try again.";
+            }
+        } catch (mysqli_sql_exception $e) {
+            error_log("Error checking email existence: " . $e->getMessage());
+            $message[] = "Database error during registration. Please try again.";
+        } finally {
+            if ($check_stmt) {
+                $check_stmt->close();
+                $check_stmt = null;
+            }
+        }
 
-        // Check if email already exists
-        $check_stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
-        $check_stmt->bind_param("s", $email);
-        $check_stmt->execute();
-        $result = $check_stmt->get_result();
-
-        if ($result->num_rows > 0) {
+        if ($email_exists) {
             $message[] = "User already exists!";
-        } else {
-            // Get the next available ID
-            $next_id_query = "SELECT MAX(id) as max_id FROM users";
-            $next_id_result = $conn->query($next_id_query);
-            $next_id_row = $next_id_result->fetch_assoc();
-            $next_id = ($next_id_row['max_id'] ?? 0) + 1;
+        }
 
-            // Insert user into database with the next available ID
-            $insert_stmt = $conn->prepare("INSERT INTO users (id, username, email, password, image, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-            $insert_stmt->bind_param("issss", $next_id, $username, $email, $hashed_password, $image);
-
+        if (empty($message)) { // Proceed only if email check was successful and email does not exist
+            $next_id = null;
             try {
-                if ($insert_stmt->execute()) {
-                    $message[] = "Registration successful!";
-                    header('location:/login');
-                    exit();
+                $next_id_query = "SELECT MAX(id) as max_id FROM users";
+                $next_id_query_result = $conn->query($next_id_query); // Renamed to avoid conflict
+                if ($next_id_query_result) {
+                    $next_id_row = $next_id_query_result->fetch_assoc();
+                    $next_id = ($next_id_row['max_id'] ?? 0) + 1;
                 } else {
-                    $message[] = "Registration failed: " . $insert_stmt->error;
+                     // This case might be caught by mysqli_report if enabled for query()
+                    error_log("Error fetching max ID (query failed): " . $conn->error);
+                    $message[] = "Database error creating user ID. Please try again.";
                 }
             } catch (mysqli_sql_exception $e) {
-                $message[] = "Error: " . $e->getMessage();
+                error_log("Error fetching max ID: " . $e->getMessage());
+                $message[] = "Database error creating user ID. Please try again.";
             }
 
-            $insert_stmt->close();
+            if ($next_id !== null && empty($message)) { // Proceed only if next_id was found
+                try {
+                    $insert_stmt = $conn->prepare("INSERT INTO users (id, username, email, password, image, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+                    if ($insert_stmt) {
+                        $insert_stmt->bind_param("issss", $next_id, $username, $email, $hashed_password, $image);
+                        if ($insert_stmt->execute()) {
+                            // $message[] = "Registration successful!"; // Message won't be seen due to redirect
+                            header('location:/login');
+                            exit();
+                        } else {
+                            // This might not be reached if execute throws an exception
+                            $message[] = "Registration failed: " . $insert_stmt->error;
+                        }
+                    } else {
+                        error_log("Error preparing insert user statement: " . $conn->error);
+                        $message[] = "Registration failed due to a database error.";
+                    }
+                } catch (mysqli_sql_exception $e) {
+                    error_log("Error inserting user: " . $e->getMessage());
+                    $message[] = "Registration failed due to a database error.";
+                } finally {
+                    if ($insert_stmt) {
+                        $insert_stmt->close();
+                        $insert_stmt = null;
+                    }
+                }
+            }
         }
-        $check_stmt->close();
     }
 }
 ?>
