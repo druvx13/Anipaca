@@ -519,14 +519,14 @@ $totalVotes = $like_count + $dislike_count;
                                 </div>
                                 <?php endif; ?>
 
-                                <div id="download-options-area" style="display: none; margin-top: 20px; padding: 15px; background-color: #252525; border-radius: 5px; color: #fff;">
+                                <div id="download-options-area" style="margin-top: 20px; padding: 15px; background-color: #252525; border-radius: 5px; color: #fff;">
                                     <h4>Download Options / Stream Links</h4>
                                     <p style="font-size: 0.9em; color: #ccc;"><small>These are M3U8 playlist links. You can play these links directly in media players like VLC, or use third-party tools/browser extensions (e.g., Video DownloadHelper, JDownloader, or `yt-dlp` on your computer) to download the content.</small></p>
-                                    <div id="sub-download-link-container" style="margin-bottom: 10px; display: none;">
+                                    <div id="sub-download-link-container" style="margin-bottom: 10px; display: none;"> <!-- Keep display:none here -->
                                         <strong>SUB M3U8:</strong> <a id="sub-m3u8-link-text" href="#" target="_blank" style="color: #ffc107; word-break: break-all;"></a>
                                         <button class="btn btn-sm btn-secondary btn-copy-link" data-link-id="sub-m3u8-link-text" style="margin-left: 10px;">Copy Link</button>
                                     </div>
-                                    <div id="dub-download-link-container" style="display: none;">
+                                    <div id="dub-download-link-container" style="display: none;"> <!-- Keep display:none here -->
                                         <strong>DUB M3U8:</strong> <a id="dub-m3u8-link-text" href="#" target="_blank" style="color: #ffc107; word-break: break-all;"></a>
                                         <button class="btn btn-sm btn-secondary btn-copy-link" data-link-id="dub-m3u8-link-text" style="margin-left: 10px;">Copy Link</button>
                                     </div>
@@ -1091,11 +1091,9 @@ $totalVotes = $like_count + $dislike_count;
 
                         const $activeServer = $('.btn-server.active').first();
                         if ($activeServer.length) {
-                            setTimeout(() => $activeServer.click(), 100);
+                            setTimeout(() => $activeServer.click(), 100); // This will trigger the click handler including the AJAX for M3U8
                         }
-
-                        attachServerListeners();
-                        
+                        // attachServerListeners(); // Already called in updateServerList, no need to call again here
                     }
                 }
 
@@ -1107,7 +1105,7 @@ $totalVotes = $like_count + $dislike_count;
                         const serverId = $(this).data("server-id");
                         const serverType = $(this).data("server-type");
                         const serverName = $(this).data("server-name");
-                        const episodeId = $(this).data("episode-id");
+                        // const episodeId = $(this).data("episode-id"); // This is the API episode ID like zoro_12345
                         const urlParams = new URLSearchParams(window.location.search);
                         const episodeNumber = urlParams.get('ep');
 
@@ -1118,11 +1116,52 @@ $totalVotes = $like_count + $dislike_count;
                         localStorage.setItem('preferredServerName', serverName);
 
                         const skipParam = autoSkipEnabled ? "&skip=true" : "&skip=false";
-                        const encodedId = encodeURIComponent(currentEpisodeId); // ✅ properly encode the ID
+                        const encodedId = encodeURIComponent(currentEpisodeId); // currentEpisodeId is like anime-slug?ep=X
                         const playerUrl = `<?= $websiteUrl ?>/src/player/${currentServerType}.php?id=${encodedId}&server=${currentServerName}&embed=true&ep=${episodeNumber}${skipParam}`;
 
                         console.log('Setting player URL:', playerUrl);
                         setTimeout(() => $iframe.attr('src', playerUrl), 100);
+
+                        console.log('Server button clicked. Type:', currentServerType, 'Name:', currentServerName, 'EpisodeID for link:', currentEpisodeId);
+                        // Hide both link containers initially
+                        $('#sub-download-link-container').hide();
+                        $('#dub-download-link-container').hide();
+                        // $('#download-options-area').show(); // Already visible due to HTML change
+
+                        $.ajax({
+                            url: '/src/ajax/get_m3u8_link.php',
+                            type: 'GET',
+                            data: {
+                                episodeId: currentEpisodeId,
+                                serverName: currentServerName,
+                                serverType: currentServerType
+                            },
+                            dataType: 'json',
+                            success: function(apiData) {
+                                console.log('AJAX success for get_m3u8_link.php. Data:', apiData);
+                                if (apiData.success && apiData.m3u8_url) {
+                                    if (apiData.serverType === 'sub') {
+                                        console.log('Populating SUB link:', apiData.m3u8_url);
+                                        $('#sub-m3u8-link-text').text(apiData.m3u8_url).attr('href', apiData.m3u8_url);
+                                        $('#sub-download-link-container').show();
+                                        $('#dub-download-link-container').hide();
+                                    } else if (apiData.serverType === 'dub') {
+                                        console.log('Populating DUB link:', apiData.m3u8_url);
+                                        $('#dub-m3u8-link-text').text(apiData.m3u8_url).attr('href', apiData.m3u8_url);
+                                        $('#dub-download-link-container').show();
+                                        $('#sub-download-link-container').hide();
+                                    }
+                                    // $('#download-options-area').show(); // Already visible
+                                } else {
+                                    // console.error('Failed to get M3U8 link:', apiData.error);
+                                    // Keep the download area visible but specific links hidden
+                                }
+                            },
+                            error: function(xhr, status, errorThrown) {
+                                console.error('AJAX error fetching M3U8 link. Status:', status, 'Error:', errorThrown, 'XHR:', xhr);
+                                // Keep the download area visible but specific links hidden
+                            }
+                        });
 
                         updateWatchHistory({
                             episodeNumber: parseInt(episodeNumber)
@@ -1277,57 +1316,8 @@ $totalVotes = $like_count + $dislike_count;
                     loadWatchedEpisodes();
                 }
 
-                $(iframe).on('load', handleAutoNext);
-
-                // Fetch M3U8 link for download option when server is clicked
-                $('#download-options-area').hide();
-                $('#sub-download-link-container').hide();
-                $('#dub-download-link-container').hide();
-
-                // episodeId here is the one from data-episode-id, which is the full API episode ID
-                // currentEpisodeId is the one used for player (e.g. anime-slug?ep=1)
-                // We need currentEpisodeId for the new AJAX call, as it's what get_m3u8_link.php expects
-                const episodeIdForLink = $(this).data("episode-id"); // This is the API's internal episode ID (e.g. zoro_12345)
-                                                                    // but our new script expects the combined one.
-                                                                    // Let's use currentEpisodeId which is already defined in this scope
-                                                                    // and represents the stream ID like "jujutsu-kaisen-tv?ep=1"
-
-                $.ajax({
-                    url: '/src/ajax/get_m3u8_link.php',
-                    type: 'GET',
-                    data: {
-                        episodeId: currentEpisodeId, // Pass the stream ID (e.g. anime-slug?ep=1)
-                        serverName: serverName,      // serverName from the button
-                        serverType: serverType       // serverType from the button
-                    },
-                    dataType: 'json',
-                    success: function(apiData) { // Renamed to avoid conflict with existing 'data' variable
-                        if (apiData.success && apiData.m3u8_url) {
-                            if (apiData.serverType === 'sub') {
-                                $('#sub-m3u8-link-text').text(apiData.m3u8_url).attr('href', apiData.m3u8_url);
-                                $('#sub-download-link-container').show();
-                                $('#dub-download-link-container').hide(); // Hide the other one
-                            } else if (apiData.serverType === 'dub') {
-                                $('#dub-m3u8-link-text').text(apiData.m3u8_url).attr('href', apiData.m3u8_url);
-                                $('#dub-download-link-container').show();
-                                $('#sub-download-link-container').hide(); // Hide the other one
-                            }
-                            $('#download-options-area').show();
-                        } else {
-                            // console.error('Failed to get M3U8 link:', apiData.error);
-                             $('#download-options-area').hide();
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        // console.error('AJAX error fetching M3U8 link:', error);
-                        $('#download-options-area').hide();
-                    }
-                });
-
-
-            });
-
             // Event listener for episode range selection
+            // This $(document).ready() was merged with the one below by the previous diff.
             $(document).ready(function () {
                 const $episodeRange = $('#episode-range');
                 if ($episodeRange.length) {
@@ -1383,7 +1373,21 @@ $totalVotes = $like_count + $dislike_count;
                 }
             }
 
-            $(document).ready(function () {
+            $(document).ready(function () { // This is the main/last $(document).ready()
+                const $episodeRange = $('#episode-range');
+                if ($episodeRange.length) {
+                    $episodeRange.on('change', function () {
+                        // Hide all episode pages
+                        $('.ss-list').hide();
+
+                        // Show selected page
+                        const selectedPage = $('#episodes-page-' + (parseInt(this.value) + 1));
+                        if (selectedPage.length) {
+                            selectedPage.show();
+                        }
+                    });
+                }
+
                 const $mediaResizeButton = $('#media-resize');
                 const $expandIcon = $mediaResizeButton.find('i');
 
@@ -1401,6 +1405,7 @@ $totalVotes = $like_count + $dislike_count;
 
                 // Copy link functionality
                 $('body').on('click', '.btn-copy-link', function() {
+                   console.log('Copy button clicked for link ID:', $(this).data('link-id'), 'Link to copy:', $('#' + $(this).data('link-id')).attr('href'));
                    var linkId = $(this).data('link-id');
                    var linkText = $('#' + linkId).attr('href');
                    if (linkText && linkText !== '#') {
