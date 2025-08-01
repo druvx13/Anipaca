@@ -316,6 +316,9 @@
                                         <a class="dropdown-item" href="<?= $websiteUrl ?>/continue-watching"><i class="fas fa-history mr-2"></i>Continue Watching</a>
                                         <a class="dropdown-item" href="<?= $websiteUrl ?>/watchlist"><i class="fas fa-heart mr-2"></i>Watch List</a>
                                         <a class="dropdown-item" href="<?= $websiteUrl ?>/changepass"><i class="fas fa-cog mr-2"></i>Change Password</a>
+                                        <?php if ($fetch['role'] === 'admin'): ?>
+                                        <a class="dropdown-item" href="/admin"><i class="fas fa-cogs mr-2"></i>Admin Panel</a>
+                                        <?php endif; ?>
                                         <a class="dropdown-item" href="#" onclick="showToast('(＞︿＜)', 'Please let me finish my homework first, I will develop this page later, baka!', 'info')"><i class="fas fa-cog mr-2"></i>Settings</a>
                                         <div class="clearfix"></div>
                                     </div>
