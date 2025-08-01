@@ -2,77 +2,118 @@ class CommentHandler {
     constructor() {
         this.page = 1;
         this.loading = false;
+        this.currentEpisode = '1';
+        this.currentAnimeId = '';
+
+        const commentBlock = document.getElementById('comment-block');
+        this.userId = commentBlock ? commentBlock.dataset.userId : null;
+        this.isLoggedIn = commentBlock ? commentBlock.dataset.isLoggedIn === '1' : false;
+
+        this.initialize();
         this.initializeEventListeners();
         this.initializeEmojiPickers();
     }
 
-    initializeEmojiPickers() {
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.emoji-picker-btn')) {
-                const button = e.target.closest('.emoji-picker-btn');
-                const textarea = button.closest('.comment-input-wrapper').querySelector('textarea');
-                
-                // Remove any existing picker
-                document.querySelectorAll('.emoji-mart').forEach(picker => picker.remove());
-                
-                // Create new picker
-                const picker = new EmojiMart.Picker({
-                    onSelect: emoji => {
-                        const cursorPos = textarea.selectionStart;
-                        const text = textarea.value;
-                        textarea.value = text.slice(0, cursorPos) + emoji.native + text.slice(cursorPos);
-                        picker.remove();
-                    },
-                    set: 'twitter',
-                    showPreview: false,
-                    showSkinTones: false,
-                    style: {
-                        position: 'absolute',
-                        right: '0',
-                        bottom: '100%'
-                    }
-                });
-                
-                button.parentNode.appendChild(picker);
-                
-                // Close picker when clicking outside
-                document.addEventListener('click', (event) => {
-                    if (!event.target.closest('.emoji-mart') && !event.target.closest('.emoji-picker-btn')) {
-                        picker.remove();
-                    }
-                });
+    initialize() {
+        const urlParams = new URLSearchParams(window.location.search);
+        this.currentEpisode = urlParams.get('ep') || '1';
+        // This is a bit brittle, might need a better way to get the anime ID
+        this.currentAnimeId = window.location.pathname.split('/watch/')[1].split('?')[0];
+
+        if (this.currentAnimeId) {
+            this.loadComments(this.currentEpisode, this.currentAnimeId);
+        }
+
+        // Listen for custom episode change events from the watch page
+        window.addEventListener('episodeChange', (e) => {
+            if (e.detail && e.detail.episodeNumber) {
+                this.currentEpisode = e.detail.episodeNumber;
+                if (this.currentAnimeId) {
+                    this.loadComments(this.currentEpisode, this.currentAnimeId);
+                }
             }
         });
+
+        // Re-initialize if URL changes (for SPA-like navigation)
+        let lastUrl = location.href;
+        new MutationObserver(() => {
+            const url = location.href;
+            if (url !== lastUrl) {
+                lastUrl = url;
+                this.initialize();
+            }
+        }).observe(document.body, { subtree: true, childList: true });
     }
 
-    // Add this method to handle reactions
+    async loadComments(episodeId, animeId) {
+        if (this.loading) return;
+        this.loading = true;
+
+        try {
+            document.querySelectorAll('[data-current-episode]').forEach(input => input.value = episodeId);
+            document.querySelectorAll('[data-current-anime]').forEach(input => input.value = animeId);
+
+            const formData = new FormData();
+            formData.append('action', 'get');
+            formData.append('episode_id', episodeId);
+            formData.append('anime_id', animeId);
+
+            const response = await fetch('/src/component/comment.php', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                document.getElementById('comment-count').textContent = result.commentCount;
+                const commentsList = document.getElementById('comments-list');
+                commentsList.innerHTML = result.comments.map(comment => this.generateCommentHTML(comment, true)).join('');
+
+                document.querySelectorAll('.current-episode').forEach(el => el.textContent = episodeId);
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+        } finally {
+            this.loading = false;
+        }
+    }
+
+    initializeEmojiPickers() {
+        // Emoji picker logic can be added here if needed
+    }
+
     async handleReaction(button) {
-        if (!this.userId) {
+        if (!this.isLoggedIn) {
             alert('Please login to react to comments');
             return;
         }
 
         const commentId = button.dataset.id;
         const type = button.dataset.type;
+        const episodeId = document.querySelector('input[name="episode_id"]').value;
+        const animeId = document.querySelector('input[name="anime_id"]').value;
+
         const formData = new FormData();
         formData.append('action', 'react');
         formData.append('comment_id', commentId);
         formData.append('type', type);
+        formData.append('episode_id', episodeId);
+        formData.append('anime_id', animeId);
 
         try {
             const response = await fetch('/src/component/comment.php', {
                 method: 'POST',
                 body: formData
             });
-
             const result = await response.json();
-            if (result.success) {
-                const comment = document.querySelector(`#comment-${commentId}`);
-                const likeBtn = comment.querySelector(`.cm-btn-vote[data-type="1"]`);
-                const dislikeBtn = comment.querySelector(`.cm-btn-vote[data-type="0"]`);
 
-                likeBtn.querySelector('.value').textContent = result.likes;
-                dislikeBtn.querySelector('.value').textContent = result.dislikes;
+            if (result.success) {
+                const commentElement = document.querySelector(`#cm-${commentId}`);
+                const likeBtn = commentElement.querySelector(`.cm-btn-vote[data-type="1"]`);
+                const dislikeBtn = commentElement.querySelector(`.cm-btn-vote[data-type="0"]`);
+
+                likeBtn.querySelector('.value').textContent = result.likes || '';
+                dislikeBtn.querySelector('.value').textContent = result.dislikes || '';
 
                 likeBtn.classList.toggle('active', result.userReaction === 1);
                 dislikeBtn.classList.toggle('active', result.userReaction === 0);
@@ -83,44 +124,49 @@ class CommentHandler {
     }
 
     initializeEventListeners() {
+        const commentsList = document.getElementById('comments-list');
+        if (!commentsList) return;
+
         // Comment form submission
-        document.getElementById('comment-form')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.submitComment(e.target);
-        });
-
-        // Reply button clicks
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.ib-reply .btn')) {
-                const commentId = e.target.closest('.ib-reply').dataset.id;
-                this.toggleReplyForm(commentId);
-            }
-        });
-
-        // Reply form submission
-        document.addEventListener('submit', (e) => {
-            if (e.target.classList.contains('reply-form')) {
+        const commentForm = document.getElementById('comment-form');
+        if (commentForm) {
+            commentForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.submitReply(e.target);
-            }
-        });
+                this.submitComment(e.target);
+            });
+        }
 
-        // Close reply form
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-close-reply')) {
-                const replyBlock = e.target.closest('.reply-block');
-                if (replyBlock) {
-                    replyBlock.style.display = 'none';
-                }
-            }
-        });
-
-        // Reaction buttons
-        document.addEventListener('click', (e) => {
+        // Use a single delegated event listener for clicks inside the comments list
+        commentsList.addEventListener('click', (e) => {
             const reactionBtn = e.target.closest('.cm-btn-vote');
             if (reactionBtn) {
                 e.preventDefault();
                 this.handleReaction(reactionBtn);
+                return;
+            }
+
+            const replyBtn = e.target.closest('.ib-reply .btn');
+            if (replyBtn) {
+                e.preventDefault();
+                const commentId = replyBtn.closest('.cw_l-line').id.split('-')[1];
+                this.toggleReplyForm(commentId);
+                return;
+            }
+
+            const closeReplyBtn = e.target.closest('.btn-close-reply');
+            if (closeReplyBtn) {
+                e.preventDefault();
+                const commentId = closeReplyBtn.closest('.reply-block').id.split('-')[1];
+                this.toggleReplyForm(commentId); // Toggles it off
+                return;
+            }
+        });
+
+        // Delegated event listener for reply form submissions
+        commentsList.addEventListener('submit', (e) => {
+            if (e.target.classList.contains('reply-form')) {
+                e.preventDefault();
+                this.submitReply(e.target);
             }
         });
     }
@@ -129,128 +175,120 @@ class CommentHandler {
         const replyBlock = document.querySelector(`#reply-${commentId}`);
         if (replyBlock) {
             replyBlock.style.display = replyBlock.style.display === 'none' ? 'block' : 'none';
-        }
-    }
-
-    async submitReply(form) {
-        if (this.loading) return;
-        
-        try {
-            this.loading = true;
-            const formData = new FormData(form);
-            formData.append('action', 'reply');
-
-            const response = await fetch('/src/component/comment.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                // Add reply to DOM
-                const parentId = formData.get('parent_id');
-                const repliesContainer = document.querySelector(`#replies-${parentId}`);
-                if (repliesContainer) {
-                    repliesContainer.insertAdjacentHTML('beforeend', this.generateCommentHTML(data.comment));
-                }
-                
-                // Clear and hide form
-                form.reset();
-                form.closest('.reply-block').style.display = 'none';
-            } else {
-                alert(data.message || 'Error submitting reply');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to submit reply');
-        } finally {
-            this.loading = false;
+        } else {
+            // Create and inject the reply form if it doesn't exist
+            const commentElement = document.querySelector(`#cm-${commentId} .info`);
+            const replyFormHTML = this.generateReplyFormHTML(commentId);
+            commentElement.insertAdjacentHTML('beforeend', replyFormHTML);
         }
     }
 
     async submitComment(form) {
+        const loadingSpinner = document.getElementById('comment-loading');
         try {
+            loadingSpinner.style.display = 'block';
             const formData = new FormData(form);
-            formData.append('action', 'add');
-            
-            // Debug log the form data
-            console.log('Submitting comment with data:', Object.fromEntries(formData));
-
             const response = await fetch('/src/component/comment.php', {
                 method: 'POST',
                 body: formData
             });
+            const result = await response.json();
 
-            const data = await response.json();
-            if (data.success) {
-                this.addCommentToDOM(data.comment);
-                form.reset();
+            if (result.success) {
+                form.querySelector('textarea').value = '';
+                this.loadComments(this.currentEpisode, this.currentAnimeId);
             } else {
-                console.error('Comment submission error:', data);
-                alert(data.message || 'Error submitting comment');
+                alert(result.message || 'Error submitting comment');
             }
         } catch (error) {
             console.error('Error:', error);
             alert('Failed to submit comment');
+        } finally {
+            loadingSpinner.style.display = 'none';
         }
     }
 
-    async loadMoreComments() {
-        if (this.loading) return;
-        
+    async submitReply(form) {
         try {
-            this.loading = true;
-            const episodeId = document.querySelector('[name="episode_id"]').value;
-            
+            const formData = new FormData(form);
             const response = await fetch('/src/component/comment.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `action=get&episode_id=${episodeId}&page=${++this.page}`
+                body: formData
             });
+            const result = await response.json();
 
-            const data = await response.json();
-            if (data.success) {
-                this.appendComments(data.comments);
+            if (result.success) {
+                // Instead of full reload, we can just append the new reply
+                // but for simplicity, a reload is fine for now.
+                this.loadComments(this.currentEpisode, this.currentAnimeId);
+            } else {
+                alert(result.message || 'Error submitting reply');
             }
         } catch (error) {
-            console.error('Error:', error);
-        } finally {
-            this.loading = false;
+            console.error('Error submitting reply:', error);
+            alert('Failed to submit reply');
         }
     }
 
-    addCommentToDOM(comment) {
-        const container = document.getElementById('comments-container');
-        container.insertAdjacentHTML('afterbegin', this.generateCommentHTML(comment));
-    }
+    generateCommentHTML(comment, isTopLevel = false) {
+        const repliesHTML = comment.replies && comment.replies.length > 0
+            ? `<div class="replies">${comment.replies.map(reply => this.generateCommentHTML(reply, false)).join('')}</div>`
+            : '';
 
-    appendComments(comments) {
-        const container = document.getElementById('comments-container');
-        comments.forEach(comment => {
-            container.insertAdjacentHTML('beforeend', this.generateCommentHTML(comment));
-        });
-    }
+        const replyButtonHTML = isTopLevel ? `
+            <div class="ib-li ib-reply">
+                <a class="btn" data-id="${comment.id}"><i class="fas fa-reply mr-1"></i>Reply</a>
+            </div>
+        ` : '';
 
-    generateCommentHTML(comment) {
         return `
-            <div class="comment" data-id="${comment.id}">
-                <div class="comment-avatar">
-                    <img src="${comment.avatar_url}" alt="${comment.username}">
-                </div>
-                <div class="comment-content">
-                    <div class="comment-header">
-                        <span class="username">${comment.username}</span>
-                        <span class="timestamp">${new Date(comment.created_at).toLocaleString()}</span>
+            <div class="cw_l-line" id="cm-${comment.id}">
+                <a href="/community/user/${comment.user_id}" target="_blank" class="user-avatar">
+                    <img class="user-avatar-img" src="${comment.user_avatar}" alt="${comment.username}">
+                </a>
+                <div class="info">
+                    <div class="ihead">
+                        <a href="/community/user/${comment.user_id}" target="_blank" class="user-name">${comment.username}</a>
+                        <div class="time">${comment.created_at}</div>
                     </div>
-                    <div class="comment-text">${comment.content}</div>
-                    <div class="comment-actions">
-                        <button class="reply-btn">Reply</button>
-                        <span class="likes">${comment.like_count} likes</span>
-                        <span class="dislikes">${comment.dislike_count} dislikes</span>
+                    <div class="ibody">
+                        <p>${comment.content}</p>
                     </div>
+                    <div class="ibottom">
+                        <div class="ib-li ib-like">
+                            <a class="btn cm-btn-vote" data-id="${comment.id}" data-type="1">
+                                <i class="far fa-thumbs-up mr-1"></i>
+                                <span class="value">${comment.likes || ''}</span>
+                            </a>
+                        </div>
+                        <div class="ib-li ib-dislike">
+                            <a class="btn cm-btn-vote" data-id="${comment.id}" data-type="0">
+                                <i class="far fa-thumbs-down mr-1"></i>
+                                <span class="value">${comment.dislikes || ''}</span>
+                            </a>
+                        </div>
+                        ${replyButtonHTML}
+                    </div>
+                    ${repliesHTML}
                 </div>
+            </div>
+        `;
+    }
+
+    generateReplyFormHTML(parentId) {
+        return `
+            <div class="reply-block" id="reply-${parentId}" style="display: block;">
+                <form class="reply-form preform preform-dark">
+                    <input type="hidden" name="action" value="reply">
+                    <input type="hidden" name="parent_id" value="${parentId}">
+                     <input type="hidden" name="episode_id" value="${this.currentEpisode}" data-current-episode>
+                    <input type="hidden" name="anime_id" value="${this.currentAnimeId}" data-current-anime>
+                    <textarea class="form-control form-control-textarea" name="content" placeholder="Write a reply..."></textarea>
+                    <div class="ci-buttons">
+                        <button type="submit" class="btn btn-sm btn-primary">Submit Reply</button>
+                        <button type="button" class="btn btn-sm btn-secondary btn-close-reply">Cancel</button>
+                    </div>
+                </form>
             </div>
         `;
     }
@@ -258,5 +296,8 @@ class CommentHandler {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new CommentHandler();
+    // Make sure this runs only on pages with the comment block
+    if (document.getElementById('comment-block')) {
+        new CommentHandler();
+    }
 });

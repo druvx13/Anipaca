@@ -46,31 +46,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 exit;
             }
 
-            if (!isset($_POST['anime_id']) || empty($_POST['anime_id'])) {
-                echo json_encode(['success' => false, 'message' => 'Missing anime ID']);
+            $commentSystem = new CommentSystem(
+                $conn,
+                $_POST['episode_id'],
+                $_POST['anime_id']
+            );
+
+            $result = $commentSystem->addComment($_POST['content']);
+
+            echo json_encode($result);
+            break;
+
+        case 'reply':
+            if (!isset($_POST['content']) || empty(trim($_POST['content']))) {
+                echo json_encode(['success' => false, 'message' => 'Reply content cannot be empty']);
                 exit;
             }
-            
-            $stmt = $conn->prepare("SELECT username, image FROM users WHERE id = ?");
-            if (!$stmt) {
-                error_log("MySQL Prepare Error: " . $conn->error);
-                echo json_encode(['success' => false, 'message' => 'Failed to prepare statement: ' . $conn->error]);
+
+            if (!isset($_POST['parent_id']) || empty($_POST['parent_id'])) {
+                echo json_encode(['success' => false, 'message' => 'Missing parent comment ID']);
                 exit;
             }
-            $stmt->bind_param("i", $_COOKIE['userID']);
-            $stmt->execute();
-            $user = $stmt->get_result()->fetch_assoc();
-   
-            $avatar_url = !empty($user['image']) ? $user['image'] : '';
-            
+
             $commentSystem = new CommentSystem(
                 $conn, 
                 $_POST['episode_id'], 
                 $_POST['anime_id'] 
             );
-            
-            $result = $commentSystem->addComment($_POST['content'], $user['username'], $avatar_url);
-            
+
+            $result = $commentSystem->addComment($_POST['content'], $_POST['parent_id']);
             
             echo json_encode($result);
             break;
@@ -105,10 +109,7 @@ if ($user_id) {
 <style>
 </style>
 
-<section class="block_area block_area-comment" id="comment-block">
-    <script>var userId = <?php echo $user_id ?? 'null'; ?>;</script>
-    <script>var is_logged_in = <?php echo $user_id ? '1' : '0'; ?>;</script>
-
+<section class="block_area block_area-comment" id="comment-block" data-user-id="<?php echo $user_id ?? 'null'; ?>" data-is-logged-in="<?php echo $user_id ? '1' : '0'; ?>">
     <div class="block_area-header block_area-header-tabs">
         <div class="float-left bah-heading mr-4">
             <h2 class="cat-heading">Comments</h2>
@@ -191,223 +192,9 @@ if ($user_id) {
 
             <div class="list-comment">
                 <div class="cw_list" id="comments-list">
-                    <div class="comment">
-                        <div class="comment-avatar">
-                            <img class="comment-avatar-img" src="/public/images/no-avatar.jpeg" alt="username">
-                        </div>
-                        <div class="comment-body">
-                            <div class="comment-info">
-                                <span class="comment-user">Username</span>
-                                <span class="comment-time">2 hours ago</span>
-                            </div>
-                            <div class="comment-content">
-                                This is a sample comment.
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Comments will be loaded here by comment.js -->
                 </div>
             </div>
         </div>
     </div>
 </section>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let currentEpisode = '1';
-    let currentAnimeId = '';
-
-    async function loadComments(episodeId, animeId) {
-        try {
-            console.log('Loading comments for:', { episodeId, animeId }); 
-
-            document.querySelectorAll('[data-current-episode]').forEach(input => {
-                input.value = episodeId;
-            });
-            document.querySelectorAll('[data-current-anime]').forEach(input => {
-                input.value = animeId;
-            });
-
-            const formData = new FormData();
-            formData.append('action', 'get');
-            formData.append('episode_id', episodeId);
-            formData.append('anime_id', animeId);
-
-            const response = await fetch('/src/component/comment.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
-            
-            if (result.success) {
-                document.getElementById('comment-count').textContent = result.commentCount;
-
-                const commentsList = document.getElementById('comments-list');
-                commentsList.innerHTML = result.comments.map(comment => `
-                    <div class="cw_l-line" id="cm-${comment.id}">
-                        <a href="/community/user/${comment.user_id}" target="_blank" class="user-avatar" onclick="alert('Maybe in future, a detailed user profile will be added!')">
-                            <img class="user-avatar-img" src="${comment.user_avatar}" alt="${comment.username}">
-                        </a>
-                        <div class="info">
-                            <div class="ihead">
-                                <a href="/community/user/${comment.user_id}" target="_blank" class="user-name" onclick="alert('Maybe in future, a detailed user profile will be added!')">${comment.username}</a>
-                                <div class="time">${comment.created_at}</div>
-                            </div>
-                            <div class="ibody">
-                                <p>${comment.content}</p>
-                            </div>
-                            <div class="ibottom">
-                                <div class="ib-li ib-like">
-                                    <a class="btn cm-btn-vote" data-id="${comment.id}" data-type="1">
-                                        <i class="far fa-thumbs-up mr-1"></i>
-                                        <span class="value">${comment.likes || ''}</span>
-                                    </a>
-                                </div>
-                                <div class="ib-li ib-dislike">
-                                    <a class="btn cm-btn-vote" data-id="${comment.id}" data-type="0">
-                                        <i class="far fa-thumbs-down mr-1"></i>
-                                        <span class="value">${comment.dislikes || ''}</span>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-
-                document.querySelectorAll('.current-episode').forEach(el => {
-                    el.textContent = episodeId;
-                });
-                document.querySelectorAll('input[name="episode_id"]').forEach(input => {
-                    input.value = episodeId;
-                });
-                document.querySelectorAll('input[name="anime_id"]').forEach(input => {
-                    input.value = animeId;
-                });
-            }
-        } catch (error) {
-            console.error('Error loading comments:', error);
-        }
-    }
-
-    function initializeComments() {
-        const urlParams = new URLSearchParams(window.location.search);
-        currentEpisode = urlParams.get('ep') || '1';
-        currentAnimeId = window.location.pathname.split('/').pop().split('?')[0];
-        
-        console.log('Initializing comments with:', { currentEpisode, currentAnimeId }); 
-        
-        if (currentAnimeId) {
-            loadComments(currentEpisode, currentAnimeId);
-        }
-    }
-
-    window.addEventListener('episodeChange', function(e) {
-        console.log('Episode change event received:', e.detail); 
-        
-        if (e.detail && e.detail.episodeNumber) {
-            currentEpisode = e.detail.episodeNumber;
-            if (currentAnimeId) {
-                loadComments(currentEpisode, currentAnimeId);
-            }
-        }
-    });
-
-    let lastUrl = location.href; 
-    new MutationObserver(() => {
-        const url = location.href;
-        if (url !== lastUrl) {
-            lastUrl = url;
-            initializeComments();
-        }
-    }).observe(document, {subtree: true, childList: true});
-
-    initializeComments();
-
-    const commentForm = document.getElementById('comment-form');
-    if (commentForm) {
-        commentForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const episodeId = this.querySelector('[name="episode_id"]').value;
-            const animeId = this.querySelector('[name="anime_id"]').value;
-            
-            if (!episodeId || !animeId) {
-                alert('Missing episode or anime information');
-                return;
-            }
-
-            const formData = new FormData(this);
-            formData.set('episode_id', episodeId);
-            formData.set('anime_id', animeId);
-            
-            try {
-                document.getElementById('comment-loading').style.display = 'block';
-                
-                const response = await fetch('/src/component/comment.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    this.querySelector('textarea').value = '';
-                    loadComments(episodeId, animeId);
-                } else {
-                    alert(result.message || 'Error submitting comment');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to submit comment');
-            } finally {
-                document.getElementById('comment-loading').style.display = 'none';
-            }
-        });
-    }
-});
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    document.addEventListener('click', async function(e) {
-        const voteButton = e.target.closest('.cm-btn-vote');
-        if (!voteButton) return;
-        
-        if (!userId) {
-            if (typeof openModal === 'function') {
-                openModal();
-            } else {
-                alert('Please login to react to comments');
-            }
-            return;
-        }
-        const commentId = voteButton.dataset.id;
-        const type = voteButton.dataset.type;
-        const episodeId = document.querySelector('input[name="episode_id"]').value;
-        const animeId = document.querySelector('input[name="anime_id"]').value;
-        try {
-            const formData = new FormData();
-            formData.append('action', 'react');
-            formData.append('comment_id', commentId);
-            formData.append('type', type);
-            formData.append('episode_id', episodeId);
-            formData.append('anime_id', animeId);
-            const response = await fetch('/src/component/comment.php', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            if (result.success) {
-                const commentElement = document.querySelector(`#cm-${commentId}`);
-                const likeBtn = commentElement.querySelector(`.cm-btn-vote[data-type="1"]`);
-                const dislikeBtn = commentElement.querySelector(`.cm-btn-vote[data-type="0"]`);
-                likeBtn.querySelector('.value').textContent = result.likes || '';
-                dislikeBtn.querySelector('.value').textContent = result.dislikes || '';               
-                likeBtn.classList.toggle('active', result.userReaction === 1);
-                dislikeBtn.classList.toggle('active', result.userReaction === 0);
-            }
-        } catch (error) {
-            console.error('Error handling reaction:', error);
-        }
-    });
-});
-</script>

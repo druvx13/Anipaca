@@ -24,9 +24,12 @@ class CommentSystem {
         $query = "
             SELECT 
                 c.*,
+                u.username,
+                COALESCE(u.image, u.avatar_url) as user_avatar,
                 (SELECT COUNT(*) FROM comment_reactions cr WHERE cr.comment_id = c.id AND cr.type = 1) as likes,
                 (SELECT COUNT(*) FROM comment_reactions cr WHERE cr.comment_id = c.id AND cr.type = 0) as dislikes
             FROM comments c
+            LEFT JOIN users u ON c.user_id = u.id
             WHERE c.anime_id = ? 
             AND c.episode_id = ?
             AND c.parent_id IS NULL
@@ -43,7 +46,14 @@ class CommentSystem {
         );
         
         $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $comments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        foreach ($comments as &$comment) {
+            $comment['userReaction'] = $this->getUserReaction($comment['id']);
+            $comment['replies'] = $this->getReplies($comment['id']);
+        }
+
+        return $comments;
     }
 
     private function getReplies($parent_id) {
@@ -72,19 +82,21 @@ class CommentSystem {
         return $replies;
     }
 
-    public function addComment($content, $username, $avatar_url) {
+    public function addComment($content, $parent_id = null) {
         try {
             if (empty($this->anime_id)) {
                 error_log("Error: anime_id is empty in addComment");
                 return ['success' => false, 'message' => 'Invalid anime ID'];
             }
 
-            $user_id = isset($_COOKIE['userID']) ? (int)$_COOKIE['userID'] : 0;
+            if (!$this->user_id) {
+                return ['success' => false, 'message' => 'User not logged in'];
+            }
             
             $stmt = $this->conn->prepare("
                 INSERT INTO comments 
-                (content, username, user_avatar, episode_id, anime_id, user_id, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
+                (content, episode_id, anime_id, user_id, parent_id, created_at)
+                VALUES (?, ?, ?, ?, ?, NOW())
             ");
             
             if (!$stmt) {
@@ -92,31 +104,22 @@ class CommentSystem {
                 return ['success' => false, 'message' => 'Failed to prepare statement'];
             }
             
-            $stmt->bind_param("sssisi", 
+            $stmt->bind_param("sisii",
                 $content, 
-                $username, 
-                $avatar_url, 
                 $this->episode_id, 
                 $this->anime_id,
-                $user_id
+                $this->user_id,
+                $parent_id
             );
 
             if ($stmt->execute()) {
                 $comment_id = $this->conn->insert_id;
+                $new_comment = $this->getCommentById($comment_id);
+
                 return [
                     'success' => true,
                     'message' => 'Comment added successfully',
-                    'comment' => [
-                        'id' => $comment_id,
-                        'content' => $content,
-                        'username' => $username,
-                        'user_avatar' => $avatar_url,
-                        'episode_id' => $this->episode_id,
-                        'anime_id' => $this->anime_id,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'likes' => 0,
-                        'dislikes' => 0
-                    ]
+                    'comment' => $new_comment
                 ];
             } else {
                 error_log("MySQL Error in addComment: " . $stmt->error);
