@@ -277,6 +277,9 @@ $totalVotes = $like_count + $dislike_count;
                                             </div>
                                         </div>
                                         <div class="pc-right">
+                                            <div class="pc-item">
+                                                <a id="download-button" class="btn btn-sm" href="#" target="_blank"><i class="fas fa-download mr-1"></i>Download</a>
+                                            </div>
                                             <div class="pc-item pc-control block-prev" style="display:block;">
                                                 <a class="btn btn-sm btn-prev" href="javascript:;"
                                                     onclick="prevEpisode()"><i class="fas fa-backward mr-2"></i>Prev</a>
@@ -1068,6 +1071,7 @@ $totalVotes = $like_count + $dislike_count;
                         attachServerListeners();
                         
                     }
+                    updateDownloadButton();
                 }
 
                 function attachServerListeners() {
@@ -1104,6 +1108,8 @@ $totalVotes = $like_count + $dislike_count;
                             console.log('Reloading player URL:', reloadUrl);
                             $iframe.attr('src', reloadUrl);
                         });
+
+                        updateDownloadButton();
                     });
                 }
 
@@ -1156,8 +1162,25 @@ $totalVotes = $like_count + $dislike_count;
                         await updateServerList(episodeId);
 
                         updateNavigationButtons();
+                        updateDownloadButton();
                     });
                 });
+
+                function updateDownloadButton() {
+                    const $downloadButton = $('#download-button');
+                    if ($downloadButton.length) {
+                        const $activeServer = $('.btn-server.active');
+                        if ($activeServer.length) {
+                            const serverType = $activeServer.data('server-type');
+                            const serverName = $activeServer.data('server-name');
+                            const downloadUrl = `/download.php?id=${currentEpisodeId}&server=${serverName}&type=${serverType}`;
+                            $downloadButton.attr('href', downloadUrl);
+                        } else {
+                            // If no server is active, disable the button
+                            $downloadButton.attr('href', '#').addClass('disabled');
+                        }
+                    }
+                }
 
                 function initializeEpisodeSelection() {
                     console.log('Initializing episode selection');

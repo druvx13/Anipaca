@@ -32,4 +32,5 @@ $proxy = $websiteUrl . "/src/ajax/proxy.php?url=";
 
 $banner = $websiteUrl . "/public/images/banner.png";
 
-    
+require_once(__DIR__ . '/scripts/migrate.php');
+run_migrations($conn);
